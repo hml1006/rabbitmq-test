@@ -280,16 +280,15 @@ graph TD
 > 脚本命令中会指定一个参数，指明角色是作为生产者还是消费者
 ## 3.2 服务器监控脚本
 
-### 3.2.1 监控命令
+### 3.2.1 监控实现psutil
 
 **监控rabbitmq进程CPU和内存使用情况**
 
-```bash
-louis@louis:~$ ps -e -o 'pid,comm,args,pcpu,rsz,vsz,stime,user,uid' | grep rabbitmq | grep beam
- 1920 beam.smp        /usr/lib/erlang/erts-7.3/bi  2.9 61228 4344380 09:48 rabbitmq  125
+```python
+psutil.process_iter()
 ```
 
-> 上述显示的结果中，1920为进程id，2.9为CPU使用率百分比，61228为内存使用，单位KB。
+> 进程迭代器，遍历。
 
 **监控系统CPU使用情况**
 
