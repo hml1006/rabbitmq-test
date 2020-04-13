@@ -83,9 +83,6 @@ export[报表生成脚本]
 duration: 60
 # rabbitmq服务器地址
 url: amqp://localhost:5671
-# 是否生产者和消费者在同一台机器, 如果生产者和消费者不在同一台机器，task_list则只可以配置一项测试任务
-# 并且需要在不同机器上执行测试任务脚本
-same-machine: true
 # 任务列表
 task_list:
   -
@@ -93,85 +90,74 @@ task_list:
     time: 300
     # 生产者和消费者在不同机器上时，此参数生效
     routing-key: keda.test.k
-    # exchange列表
-    exchanges: 
+    # exchange
+    exchange: test.rmq.ex
+	# 消费者自动确认
+    auto-ack: true
+    # 一次确认多个消息
+    multi-ack: 100
+    # 持久化消息和队列
+    persistent: true
+    # 消息预取
+    prefetch: 500
+    # 消费者速率 msg/s, 每个消费者都是这个速率
+    consumer-rate: 500
+    # 发送速率 msg/s，每个消费者都是这个速率
+    productor-rate: 20000
+    # 消息大小
+    msg-size:
       -
-        # exchange名称
-        name: keda.exchg.test1
-        # exchange类型
-        type: topic
-		# 消费者自动确认
-        auto-ack: true
-        # 一次确认多个消息
-        multi-ack: 100
-        # 持久化消息和队列
-        persistent: true
-        # 消息预取
-        prefetch: 500
-        # 消费者速率 msg/s, 每个消费者都是这个速率
-        consumer-rate: 500
-        # 发送速率 msg/s，每个消费者都是这个速率
-        publisher-rate: 20000
-        # 消息大小
-        msg-size:
-          -
-            # 发送消息大小1000字节，持续发送5秒
-            # 持续时间
-            duration: 5
-            size: 1000
-          -
-            duration: 10
-            size: 2000
-          -
-            duration: 15
-            size: 3000
-        # 消息属性，key-value形式
-        msg-properties:
-          # 例子：优先级属性
-          priority：10
-        # 单个队列
-        queue:
-          # 队列名
-          name: keda.test.q
-          # 生产者数量
-          producter: 2
-          # 消费者数量
-          consumer: 4
+        # 发送消息大小1000字节，持续发送5秒
+        # 持续时间
+        duration: 5
+        size: 1000
+      -
+        duration: 10
+        size: 2000
+      -
+        duration: 15
+        size: 3000
+    # 消息属性，key-value形式
+    msg-properties:
+      # 例子：优先级属性
+      priority：10
+    # 单个队列
+    queue:
+      # 队列名
+      name: keda.test.q
+      # 生产者数量
+      producter: 2
+      # 消费者数量
+      consumer: 4
   -
     time: 100
-    exchanges:
-      -
-        # exchange名称
-        name: keda.exchg.test2
-        # exchange类型
-        type: topic
-		# 消费者自动确认
-        auto-ack: true
-        # 一次确认多个消息
-        multi-ack: 100
-        # 持久化消息和队列
-        persistent: false
-        # 消息预取
-        prefetch: 1
-        # 消费者速率 msg/s, 每个消费者都是这个速率
-        consumer-rate: 500
-        # 发送速率 msg/s，每个消费者都是这个速率
-        publisher-rate:
-          -
-            # 发送间隔5秒，发送速率 1000 msg/s
-            duration: 5
-            rate: 1000
-        # 多队列
-        queues:
-          # 队列生成规则，将从 perf-test-1 到perf-test-10
-          pattern：perf-test-%d
-          from: 1
-          to: 10
-          # 生产者和消费者会均衡到所有队列
-          # 总的生产者数量
-          producter: 100
-          # 总的消费者数量
-          consumer: 100
+    exchange: keda.exchg.test2
+    # 消费者自动确认
+    auto-ack: true
+    # 一次确认多个消息
+    multi-ack: 100
+    # 持久化消息和队列
+    persistent: false
+    # 消息预取
+    prefetch: 1
+    # 消费者速率 msg/s, 每个消费者都是这个速率
+    consumer-rate: 500
+    # 发送速率 msg/s，每个消费者都是这个速率
+    productor-rate:
+      - # 发送间隔5秒，发送速率 1000 msg/s
+        duration: 5
+        rate: 1000
+    # 多队列
+    queues:
+      # 队列生成规则，将从 perf-test-1 到perf-test-10
+      pattern：perf-test-%d
+      from: 1
+      to: 10
+      # 生产者和消费者会均衡到所有队列
+      # 总的生产者数量
+      producter: 100
+      # 总的消费者数量
+      consumer: 100
 ```
 
 
