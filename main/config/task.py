@@ -214,6 +214,16 @@ class Task:
         self._sleep_time = 60
         # 服务器地址
         self._url = ''
+        # 任务设置信息
+        self._config = None
+
+    @property
+    def config(self):
+        return self._config
+
+    @config.setter
+    def config(self, yaml_config):
+        self._config = yaml_config
 
     @property
     def name(self):
@@ -410,6 +420,7 @@ class Task:
             raise ValueError('yaml task empty')
         task = Task()
         print(yaml_task['name'])
+        task.config = yaml_task
         task.name = yaml_task['name']
         task.time = yaml_task['time']
         task.exchange = yaml_task['exchange']

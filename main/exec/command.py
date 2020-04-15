@@ -12,6 +12,17 @@ class Command:
         self.task = None
 
     @property
+    def type(self):
+        return self._type
+
+    @type.setter
+    @typecheck(str)
+    def type(self, prog_type):
+        if prog_type not in PROGS.keys():
+            raise ValueError('program type must be standard or mo_librabbitmq')
+        self._type = prog_type
+
+    @property
     def prog(self):
         return self._prog
 
@@ -19,7 +30,7 @@ class Command:
     @typecheck(str)
     def prog(self, prog_key):
         if prog_key not in PROGS.keys():
-            raise ValueError('program key must be standard or mo_librabbitmq')
+            raise ValueError('program type must be standard or mo_librabbitmq')
         self._prog = PROGS[prog_key]
 
     @property
@@ -247,6 +258,7 @@ class Command:
     def build_with_task(cls, task: rmqtask.Task, prog_key):
         command = Command()
         command.prog = prog_key
+        command.type = prog_key
         command.role = task.role
         command.exchange = task.exchange
         command.run_duration = task.time

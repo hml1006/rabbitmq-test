@@ -289,7 +289,8 @@ st->will_calc(path1, bottom)->calc_machine->calc_machine_cpu->calc_machine_mem->
 will_calc(path2, right)->calc_rabbitmq->calc_rmq_cpu->calc_rmq_mem->calc_rmq_disk_spend->send_stat->calc_end(path2, bottom)->e
 ```
 
-## 3.3 日志分析脚本
+## 3.3 统计数据采集和报表服务
+### 3.3.1 数据采集脚本
 
 > 日志分析脚本监听网络端口，等待接收任务脚本发来的日志数据和监控脚本发来的监控数据，解析后存入数据库。
 >
@@ -302,8 +303,8 @@ wait=>operation: 接收客户端请求
 parse=>parallel: 解析请求
 log=>operation: 日志请求处理
 stat=>operation: 监控请求处理
-parse_log=>operation: 日志数据分析
-parse_stat=>operation: 监控数据分析
+parse_log=>operation: 日志数据解析
+parse_stat=>operation: 监控数据解析
 write_db=>inputoutput: 写数据库
 end_db=>parallel: 请求处理结束
 st->wait->parse(path1, bottom)->log->parse_log->write_db->end_db(path1, bottom)->e
@@ -311,14 +312,14 @@ parse(path2, right)->stat->parse_stat->write_db->end_db(path2, left)->wait
 
 ```
 
-**定时爬取rabbitmq统计数据**
+**监控脚本定时上报rabbitmq统计数据**
 
-
-## 3.4 报表生成工具
-
-> 报表生成工具会提供web服务，通过浏览器访问可以查看任务情况。
->
 ### 3.4.1 api
+
+- **添加测试任务**
+
+  POST /tasks
+
 - **获取测试任务列表**
 
 - **获取rabbitmq服务器节点列表**
@@ -329,15 +330,11 @@ parse(path2, right)->stat->parse_stat->write_db->end_db(path2, left)->wait
 
 - **获取rabbitmq服务器统计数据**
 
-### 3.4.2 后端服务
-
-> 报表生成工具的后端为web服务，提供api数据查询，数据来源为数据库，即日志分析脚本产出的数据。
-
 ### 3.4.3 前端界面
 
 > 前端界面请求html页面，并通过api请求报表数据，在浏览器端渲染。
 
-## 3.5 mo_librabbitmq测试程序
+## 3.4 mo_librabbitmq测试程序
 
 mo_librabbitmq测试程序需提供和rabbitmq官方测试工具相同的参数，以方便任务测试脚本调用，并且需要支持任务脚本需要的功能。
 
@@ -356,11 +353,11 @@ mo_librabbitmq测试程序需提供和rabbitmq官方测试工具相同的参数�
    - 自定义prefetch
 
 
-## 3.6 数据库设计
+## 3.5 数据库设计
 
 **数据库名称**：rmq_test
 
-### 3.6.1 任务列表
+### 3.5.1 任务列表
 
 **表名**：test_task
 
@@ -370,12 +367,11 @@ mo_librabbitmq测试程序需提供和rabbitmq官方测试工具相同的参数�
 | name | varchar(64) | 任务名称 |
 | type | char(32) | 任务类型(standard, mo_librabbitmq) |
 | start_time | datetime | 任务开始时间 |
-| end_time | datetime | 任务结束时间 |
-|  | text | 任务参数(对json进行base64编码) |
+| params | text | 任务参数(对json进行base64编码) |
 
 > type是standard测试为采用官方测试工具测试，是mo_librabbitmq则为mo_librabbitmq测试工具测试。
 
-### 3.6.2 任务实时统计
+### 3.5.2 任务实时统计
 
 **表名**：task_seq
 
@@ -396,7 +392,7 @@ mo_librabbitmq测试程序需提供和rabbitmq官方测试工具相同的参数�
 >
 > 条目为每秒的统计，这些数据会用来生成折线图。
 
-### 3.6.3 rabbitmq进程崩溃历史
+### 3.5.3 rabbitmq进程崩溃历史
 **表名**：rmq_crash_history
 
 | 属性       | 类型     | 备注         |
@@ -408,7 +404,7 @@ mo_librabbitmq测试程序需提供和rabbitmq官方测试工具相同的参数�
 
 > 监控脚本通过每秒检测一次rabbitmq服务进程状态来判断是否发生崩溃，监控脚本不能判断是崩溃还是重启，如果重启rabbitmq服务，也会被认为崩溃。
 
-### 3.6.4 rabbitmq资源统计
+### 3.5.4 rabbitmq资源统计
 **表名**：rmq_stat
 
 | 属性        | 类型     | 备注                      |
@@ -422,7 +418,7 @@ mo_librabbitmq测试程序需提供和rabbitmq官方测试工具相同的参数�
 
 > msg_summary消息概况，记录消息ack情况。
 
-### 3.6.5 物理服务器资源统计
+### 3.5.5 物理服务器资源统计
 **表名**：machine_stat
 
 | 属性      | 类型     | 备注                 |
