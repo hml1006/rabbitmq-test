@@ -1,5 +1,5 @@
 [package]
-name = "mo_librabbitmq_test"
+name = "librmq_test"
 version = "0.1.0"
 authors = ["hml1006 <hml1006@qq.com>"]
 edition = "2018"

@@ -1,3 +1,5 @@
+import re
+
 def typecheck(*types):
     '''
     属性检查
@@ -9,7 +11,7 @@ def typecheck(*types):
         def on_call(*args, **kargs):
             ret = False
             for prop_type in types:
-                if isinstance(args[0], prop_type):
+                if isinstance(args[1], prop_type):
                     ret = True
             if not ret:
                 raise TypeError('Value type error, must in %s' % (str(types)))
