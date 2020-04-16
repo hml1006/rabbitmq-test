@@ -1,0 +1,12 @@
+# http服务器设置
+server:
+  ip: 0.0.0.0
+  port: 8888
+
+# 数据库设置
+database:
+  host: 127.0.0.1
+  port: 3306
+  name: rmqtest
+  user: root
+  password: root

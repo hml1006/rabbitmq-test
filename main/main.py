@@ -20,6 +20,9 @@ TASK_ADD_URL = '/tasks'
 # 添加统计条目, POST
 TASK_STAT_ADD = '/tasks/{id}/stats'
 
+# 全局key设置, 针对需要执行多个任务的测试, 如果任务名称和key相同, 则测试结果认为属于同一个测试任务
+TASK_KEY = int(time.mktime(datetime.datetime.now().timetuple()))
+
 # 需要分析的日志格式
 # id: queuetest2, time: 2.000s, sent: 1001 msg/s, received: 501 msg/s, min/median/75th/95th/99th consumer latency: 447660/696961/821878/921988/941319 µs
 # id: test-134948-252, time: 1.477s, sent: 131940 msg/s
@@ -130,6 +133,7 @@ def execute_command(command: Command):
         'name': task_name,
         'start_time': start_time,
         'type': task_type,
+        'key': TASK_KEY,
         'params': params.decode(encoding='utf8')
     }
     task_url = LOG_SERVER_URL + TASK_ADD_URL
@@ -182,19 +186,14 @@ if __name__ == '__main__':
     parser.add_argument('-t', '--type', type=str, dest='prog', help='standard or mo_librabbitmq')
     args = parser.parse_args()
 
-    # 获取脚本所在目录
-    script_dir = os.path.dirname(__file__)
-    result = re.match('^(.*)/\S{1,}/{0,1}$', script_dir)
-    os.chdir(result.group(1))
-    print('cwd: %s' % os.getcwd())
-
     # 获取配置文件路径
     if not args.file:
         print('config file path not found')
         print_help_and_exit(parser)
     else:
         file = args.file
-    
+    # 解析yaml
+    config = rmqcfg.parse_yaml(file)
     # 获取角色
     if not args.role:
         role = 'all'
@@ -211,8 +210,12 @@ if __name__ == '__main__':
     else:
         type = args.prog
 
-    # 解析yaml
-    config = rmqcfg.parse_yaml(file)
+    # 获取脚本所在目录
+    script_dir = os.path.dirname(__file__)
+    result = re.match('^(.*)/\S{1,}/{0,1}$', script_dir)
+    os.chdir(result.group(1))
+    print('cwd: %s' % os.getcwd())
+
     task_list = rmqtask.Task.build_task_list(yaml_data=config, role=role)
     if not task_list or len(task_list) == 0:
         print('task list empty')
