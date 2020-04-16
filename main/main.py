@@ -184,7 +184,6 @@ if __name__ == '__main__':
 
     # 获取脚本所在目录
     script_dir = os.path.dirname(__file__)
-    script_dir = '/home/louis/code/rabbitmq-test/main'
     result = re.match('^(.*)/\S{1,}/{0,1}$', script_dir)
     os.chdir(result.group(1))
     print('cwd: %s' % os.getcwd())
