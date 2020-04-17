@@ -15,8 +15,8 @@ class CrashService(pyrestful.rest.RestHandler):
     def initialize(self, database):
         self.database = database
 
-    @post(_path='/rabbitmq/crashes', _consumes=mediatypes.APPLICATION_JSON, _produces=mediatypes.APPLICATION_JSON)
-    def add_crash(self, crash):
+    @post(_path='/nodes/{node_id}/rabbitmq/crashes', _types=[int, dict], _consumes=mediatypes.APPLICATION_JSON, _produces=mediatypes.APPLICATION_JSON)
+    def add_crash(self, node_id, crash):
         '''
         添加一条rabbitmq崩溃记录
         :param crash:
@@ -24,16 +24,16 @@ class CrashService(pyrestful.rest.RestHandler):
         '''
         pass
 
-    @get(_path='/rabbitmq/crashes', _produces=mediatypes.APPLICATION_JSON)
-    def get_crashes(self):
+    @get(_path='/nodes/{node_id}/rabbitmq/crashes', _types=[int], _produces=mediatypes.APPLICATION_JSON)
+    def get_crashes(self, node_id):
         '''
         获取全部崩溃记录
         :return:
         '''
         pass
 
-    @delete(_path='/rabbitmq/crashes', _produces=mediatypes.APPLICATION_JSON)
-    def clear_crashes(self):
+    @delete(_path='/nodes/{node_id}/rabbitmq/crashes', _types=[int], _produces=mediatypes.APPLICATION_JSON)
+    def clear_crashes(self, node_id):
         '''
         清空崩溃记录
         :return:

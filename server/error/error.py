@@ -1,7 +1,7 @@
 '''
 错误信息
 '''
-class Error(Enum):
+class Error:
     def __init__(self):
         pass
 
@@ -20,3 +20,7 @@ class Error(Enum):
     @classmethod
     def task_not_exists(cls):
         return 'task not exists'
+
+    @classmethod
+    def unknown_error(cls):
+        return 'unknown error'

@@ -316,19 +316,58 @@ parse(path2, right)->stat->parse_stat->write_db->end_db(path2, left)->wait
 
 ### 3.4.1 api
 
+#### 3.4.1.1 测试任务
+
 - **添加测试任务**
 
   POST /tasks
 
+- **删除测试任务**
+  DELETE /tasks/{task_id}
 - **获取测试任务列表**
+  GET /tasks
+- **获取测试任务详情**
+  GET /tasks/{task_id}
+- **添加任务统计条目**
+  POST /tasks/{task_id}/task_seqs
+- **查询任务统计数据**
+  GET /tasks/{task_id}/task_seqs
+- **清空任务统计数据**
+  DELETE /tasks/{task_id}/task_seqs
 
-- **获取rabbitmq服务器节点列表**
+#### 3.4.1.2 节点
+- **新增节点**
+  POST /nodes
+- **获取节点列表**
+  GET /nodes
+- **获取节点名**
+  GET /nodes/{node_id}/name
+- **删除节点**
+  DELETE /nodes/{node_id}
 
-- **获取任务统计数据**
+#### 3.4.1.3 rabbitmq服务资源统计
+- **添加资源统计条目**
+  POST /nodes/{node_id}/rabbitmq/resources
+- **查询资源统计条目**
+  GET /nodes/{node_id}/rabbitmq/resources?<from><to>
+- **清空节点rabbitmq资源统计条目**
+  DELETE /nodes/{node_id}/rabbitmq/resources
 
-- **获取物理服务器统计数据**
+#### 3.4.1.4 物理服务器资源统计
+- **添加物理服务器资源统计条目**
+  POST /nodes/{node_id}/machine/resources
+- **查询物理服务器资源统计条目**
+  GET /nodes/{node_id}/machine/resource?<from><to>
+- **清空物理服务器资源统计条目**
+  DELETE /nodes/{node_id}/machine/resource
 
-- **获取rabbitmq服务器统计数据**
+#### 3.4.1.5 rabbitmq服务崩溃统计
+- **添加崩溃记录**
+  POST /nodes/{node_id}/rabbitmq/crashes
+- **获取rabbitmq服务崩溃记录**
+  GET /nodes/{node_id}/rabbitmq/crashes
+- **删除节点rabbitmq服务崩溃历史**
+  DELETE /nodes/{node_id}/rabbitmq/crashes
 
 ### 3.4.3 前端界面
 
