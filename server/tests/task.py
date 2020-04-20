@@ -6,6 +6,7 @@ import pprint
 
 def add_task():
     key = int(time.mktime(datetime.datetime.now().timetuple()))
+    print(key)
     task = {
         'name': 'task3',
         'key': key,
@@ -33,4 +34,4 @@ def del_task():
     pprint.pprint(del_task.json())
 
 if __name__ == '__main__':
-    get_tasks()
+    add_task()

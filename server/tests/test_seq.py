@@ -20,22 +20,9 @@ def add_full():
     pprint.pprint(result.json())
 
 def add_seperate():
-    stat_time = int(time.mktime(datetime.datetime.now().timetuple())),
-    data = {
-        'stat_time': stat_time,
-        'sent': 1000,
-        'received': 500,
-        'latency_min': 100,
-        'latency_median': 300,
-        'latency_75th': 700,
-        'latency_95th': 750,
-        'latency_99th': 800
-    }
-    result = requests.post('http://127.0.0.1:8888/tasks/5/task_seqs', data=json.dumps(data))
-    print('productor =================================')
-    print('status_code: %d => %s' % (result.status_code, result.reason))
-    pprint.pprint(result.json())
-    #########################################
+    stat_time = int(time.mktime(datetime.datetime.now().timetuple()))
+    print(stat_time)
+
     data = {
         'stat_time': stat_time,
         'received': 500,
@@ -48,20 +35,33 @@ def add_seperate():
     result = requests.post('http://127.0.0.1:8888/tasks/5/task_seqs', data=json.dumps(data))
     print('consumer =================================')
     print('status_code: %d => %s' % (result.status_code, result.reason))
-    pprint.pprint(result.json())
+    pprint.pprint(result.text)
+    #########################################
+
+    data = {
+        'stat_time': stat_time,
+        'sent': 1000,
+    }
+    result = requests.post('http://127.0.0.1:8888/tasks/5/task_seqs', data=json.dumps(data))
+    print('productor =================================')
+    print('status_code: %d => %s' % (result.status_code, result.reason))
+    pprint.pprint(result.text)
+
 
 def get_seqs():
     result = requests.get('http://127.0.0.1:8888/tasks/5/task_seqs')
     print('status_code: %d => %s' % (result.status_code, result.reason))
-    pprint.pprint(result.json())
+    pprint.pprint(result.text)
 
-def del_task():
+def del_task_seqs():
     result = requests.delete('http://127.0.0.1:8888/tasks/5/task_seqs')
     print('status_code: %d => %s' % (result.status_code, result.reason))
-    pprint.pprint(result.json())
+    pprint.pprint(result.text)
 
 if __name__ == '__main__':
-    add_full()
+    # add_full()
     # time.sleep(1)
     # add_full()
-    add_seperate()
+    # add_seperate()
+    # get_seqs()
+    del_task_seqs()

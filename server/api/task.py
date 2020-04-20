@@ -29,7 +29,7 @@ class TaskService(pyrestful.rest.RestHandler):
         result = dict()
         if 'name' not in task or 'key' not in task or 'type' not in task or 'start_time' not in task or 'params' not in task:
             result['errno'] = -1
-            result['errstr'] = Error.json_fields_not_found()
+            result['errstr'] = Error.params_fields_not_found()
             return result
         # 先检查任务是否存在
         try:
@@ -136,7 +136,7 @@ class TaskService(pyrestful.rest.RestHandler):
         finally:
             return result
 
-    @post(_path='/tasks/{task_id}/task_seqs',  _consumes=mediatypes.APPLICATION_JSON, _produces=mediatypes.APPLICATION_JSON)
+    @post(_path='/tasks/{task_id}/task_seqs', _consumes=mediatypes.APPLICATION_JSON, _produces=mediatypes.APPLICATION_JSON)
     def add_task_seq(self, task_id, seq):
         '''
         添加任务指标统计序列
@@ -147,10 +147,10 @@ class TaskService(pyrestful.rest.RestHandler):
         # 如果不存在统计时间,则参数错误
         if seq['stat_time'] == None:
             result['errno'] = -1
-            result['errstr'] = Error.json_fields_not_found()
+            result['errstr'] = Error.params_fields_not_found()
             return result
         # 生产者消费者在同一个进程情况
-        if seq['sent'] != None and seq['received'] != None:
+        if 'sent' in seq and 'received' in seq:
             try:
                 task_seq = TaskSeq()
                 task_seq.task_id = task_id
@@ -170,8 +170,8 @@ class TaskService(pyrestful.rest.RestHandler):
                 result['errno'] = -1
                 result['errstr'] = str(err)
         # 生产者消费者分离模式下的生产者
-        elif seq['sent'] != None and seq['received'] == None:
-            sql = 'insert into task_seq(task_id,stat_time,sent) values(%d,%d,%d) ON DUPLICATE KEY UPDATE sent=%d' % \
+        elif 'sent' in seq and 'received' not in seq:
+            sql = 'insert into task_seq(task_id,stat_time,sent) values(%s,%d,%d) ON DUPLICATE KEY UPDATE sent=%d' % \
                   (task_id, seq['stat_time'], seq['sent'], seq['sent'])
             try:
                 self.database.execute(sql)
@@ -182,9 +182,9 @@ class TaskService(pyrestful.rest.RestHandler):
                 result['errno'] = -1
                 result['errstr'] = str(err)
         # 分离模式下的消费者上报数据
-        elif seq['sent'] == None and seq['received'] != None:
+        elif 'sent' not in seq and 'received' in seq:
             sql = 'insert into task_seq(task_id,stat_time,received,latency_min,latency_median,latency_75th,latency_95th,latency_99th) ' \
-                  'values(%d,%d,%d,%d,%d,%d,%d,%d) ON DUPLICATE KEY UPDATE received=%d,latency_min=%d,latency_median=%d,latency_75th=%d,' \
+                  'values(%s,%d,%d,%d,%d,%d,%d,%d) ON DUPLICATE KEY UPDATE received=%d,latency_min=%d,latency_median=%d,latency_75th=%d,' \
                   'latency_95th=%d,latency_99th=%d'% \
                   (task_id, seq['stat_time'], seq['received'], seq['latency_min'], seq['latency_median'], seq['latency_75th'], seq['latency_95th'], seq['latency_99th'], \
                    seq['received'], seq['latency_min'], seq['latency_median'], seq['latency_75th'], seq['latency_95th'], seq['latency_99th'])
@@ -198,7 +198,7 @@ class TaskService(pyrestful.rest.RestHandler):
                 result['errstr'] = str(err)
         else:
             result['errno'] = -1
-            result['errstr'] = Error.json_fields_not_found()
+            result['errstr'] = Error.params_fields_not_found()
 
         return result
 

@@ -10,7 +10,7 @@ class Error:
         return 'success'
 
     @classmethod
-    def json_fields_not_found(cls):
+    def params_fields_not_found(cls):
         return 'some fields required in json, please check it'
 
     @classmethod
@@ -24,3 +24,7 @@ class Error:
     @classmethod
     def unknown_error(cls):
         return 'unknown error'
+
+    @classmethod
+    def data_not_in_db(cls):
+        return 'query results is empty'

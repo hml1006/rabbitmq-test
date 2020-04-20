@@ -32,7 +32,7 @@ class Node(Base):
     '''
     __tablename__ = 'node'
     id = Column(Integer, primary_key=True, autoincrement=True)
-    name = Column(String(128), comment='节点名称')
+    name = Column(String(128), unique=True, comment='节点名称')
 
 class Task(Base):
     '''
