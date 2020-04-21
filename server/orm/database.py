@@ -105,4 +105,5 @@ class MachineStat(Base):
     stat_time = Column(Integer, nullable=False, comment='指标统计时间')
     cpu_usage = Column(Integer, nullable=False, comment='cpu使用率')
     mem_usage = Column(Integer, nullable=False, comment='内存使用量')
+    mem_total = Column(Integer, nullable=False, comment='系统内存')
     disk_free = Column(Integer, nullable=False, comment='磁盘分区剩余空间')

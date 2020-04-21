@@ -9,6 +9,7 @@ def parse_yaml(path):
     # 打开读取yaml文件
     file = open(path, 'r', encoding='utf8')
     file_data = file.read()
+    file.close()
 
     # 解析yaml数据
     yaml_data = yaml.load(file_data)

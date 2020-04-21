@@ -1,0 +1,11 @@
+# rabbitmq管理页配置
+rabbitmq:
+  host: 172.16.176.70
+  manage_port: 6674
+  username: dev
+  password: dev
+
+# 数据收集服务器地址
+collect:
+  host: 127.0.0.1
+  port: 8888

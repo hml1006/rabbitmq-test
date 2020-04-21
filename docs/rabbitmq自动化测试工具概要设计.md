@@ -450,15 +450,15 @@ mo_librabbitmq测试程序需提供和rabbitmq官方测试工具相同的参数�
 ### 3.5.4 rabbitmq资源统计
 **表名**：rmq_stat
 
-| 属性        | 类型      | 备注                      |
-| ----------- | --------- | ------------------------- |
-| id          | int       | 自增id，主键              |
-| node_id     | int       | 节点id                    |
-| stat_time   | timestamp | 统计时间                  |
-| cpu_usage   | int       | cpu使用率百分比           |
-| mem_usage   | int       | 内存使用，单位KB          |
-| disk_spend  | int       | 磁盘使用量，单位KB        |
-| msg_summary | text      | 消息概况，json base64编码 |
+| 属性        | 类型      | 备注               |
+| ----------- | --------- | ------------------ |
+| id          | int       | 自增id，主键       |
+| node_id     | int       | 节点id             |
+| stat_time   | timestamp | 统计时间           |
+| cpu_usage   | int       | cpu使用率百分比    |
+| mem_usage   | int       | 内存使用，单位KB   |
+| disk_spend  | int       | 磁盘使用量，单位KB |
+| msg_summary | text      | json               |
 
 > msg_summary消息概况，记录消息ack情况。
 
@@ -472,6 +472,7 @@ mo_librabbitmq测试程序需提供和rabbitmq官方测试工具相同的参数�
 | stat_time | timestamp | 统计时间             |
 | cpu_usage | int       | cpu使用率百分比      |
 | mem_usage | int       | 内存使用，单位KB     |
+| mem_total | int       | 系统内存             |
 | disk_free | int       | 磁盘剩余空间，单位KB |
 > disk_free字段为rabbitmq服务器mnesia数据库所在磁盘分区剩余空间。rabbitmq如果有持久化操作，这个值可以估算rabbitmq服务器压力，并且剩余空间为0时，rabbitmq可能崩溃。
 

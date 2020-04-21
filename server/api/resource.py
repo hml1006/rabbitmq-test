@@ -8,6 +8,7 @@ from orm.database import Node, RmqStat, RmqCrash, MachineStat
 from sqlalchemy import and_
 from error.error import Error
 import traceback
+import json
 
 class NodeService(pyrestful.rest.RestHandler):
     def initialize(self, database):
@@ -28,6 +29,7 @@ class NodeService(pyrestful.rest.RestHandler):
             self.database.commit()
             result['errno'] = 0
             result['errstr'] = Error.success()
+            result['id'] = node.id
         except Exception as err:
             result['errno'] = -1
             result['errstr'] = str(err)
@@ -186,7 +188,7 @@ class NodeService(pyrestful.rest.RestHandler):
             stat.cpu_usage = res['cpu_usage']
             stat.mem_usage = res['mem_usage']
             stat.disk_spend = res['disk_spend']
-            stat.msg_summary = res['msg_summary']
+            stat.msg_summary = json.dumps(res['msg_summary'])
             self.database.add(stat)
             self.database.commit()
             result['errno'] = 0
@@ -197,7 +199,6 @@ class NodeService(pyrestful.rest.RestHandler):
             result['errstr'] = str(err)
         finally:
             return result
-
 
     @get(_path='/nodes/{node_id}/rabbitmq/resources?<time_from><time_to>', _types=[int, str, str], _produces=mediatypes.APPLICATION_JSON)
     def get_rmq_res_stats(self, node_id, time_from, time_to):
@@ -264,6 +265,7 @@ class NodeService(pyrestful.rest.RestHandler):
             stat.stat_time = res['stat_time']
             stat.cpu_usage = res['cpu_usage']
             stat.mem_usage = res['mem_usage']
+            stat.mem_total = res['mem_total']
             stat.disk_free = res['disk_free']
             self.database.add(stat)
             self.database.commit()
