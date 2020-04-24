@@ -9,6 +9,7 @@ import sys
 from config.config import Config
 from api.task import TaskService
 from api.resource import NodeService
+from api.web import WebService
 from orm.database import Database
 
 if __name__ == '__main__':
@@ -28,7 +29,7 @@ if __name__ == '__main__':
 
     db_instance = Database.get_instance()
     # 监听
-    app = pyrestful.rest.RestService([TaskService, NodeService], dict(database = db_instance))
+    app = pyrestful.rest.RestService([WebService, TaskService, NodeService], dict(database = db_instance))
     app.listen(address=cfg.server_ip, port=cfg.server_port)
     # 事件循环
     tornado.ioloop.IOLoop.instance().start()

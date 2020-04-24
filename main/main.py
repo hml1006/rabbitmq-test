@@ -8,6 +8,7 @@ import datetime
 import json
 import requests
 import base64
+import traceback
 import config.config as rmqcfg
 import config.task as rmqtask
 from exec.command import Command
@@ -18,7 +19,7 @@ LOG_SERVER_URL = None
 # 添加测试任务, POST
 TASK_ADD_URL = '/tasks'
 # 添加统计条目, POST
-TASK_STAT_ADD = '/tasks/{id}/stats'
+TASK_STAT_ADD = '/tasks/{id}/task_seqs'
 
 # 全局key设置, 针对需要执行多个任务的测试, 如果任务名称和key相同, 则测试结果认为属于同一个测试任务
 TASK_KEY = int(time.mktime(datetime.datetime.now().timetuple()))
@@ -55,11 +56,13 @@ def send_http_req(url, json_str):
     :param json_str:
     :return: 返回http状态吗和数据
     '''
+    print('url: %s' % url)
     global session
     if not session:
         session = requests.Session()
     ret = session.post(url, data=json_str)
-    return (ret.status_code, ret.json())
+    print('status: %d, content: %s' % (ret.status_code, ret.text))
+    return (ret.status_code, ret.text)
 
 def send_log(line, url):
     '''
@@ -75,9 +78,8 @@ def send_log(line, url):
         print('task info not found')
         return
     log_info = dict()
-    log_info['task_id'] = task_info[0][0]
     # 日志时间设置未当前unix时间戳
-    log_info['time'] = int(time.mktime(datetime.datetime.now().timetuple()))
+    log_info['stat_time'] = int(time.mktime(datetime.datetime.now().timetuple()))
 
     # 获取发送消息速率
     sent = re.findall(RE_SENT, line)
@@ -92,31 +94,29 @@ def send_log(line, url):
     # 获取延迟数据
     latency = re.findall(RE_LATENCY, line)
     if len(latency) > 0:
-        latency_dict = dict()
         # 获取时间单位
         unit = latency[0][5]
-        latency_dict['min'] = int(latency[0][0])
-        latency_dict['median'] = int(latency[0][1])
-        latency_dict['75th'] = int(latency[0][2])
-        latency_dict['95th'] = int(latency[0][3])
-        latency_dict['99th'] = int(latency[0][4])
+        log_info['latency_min'] = int(latency[0][0])
+        log_info['latency_median'] = int(latency[0][1])
+        log_info['latency_75th'] = int(latency[0][2])
+        log_info['latency_95th'] = int(latency[0][3])
+        log_info['latency_99th'] = int(latency[0][4])
         # 单位换算, 统一用ms
         if 'µs' == unit:
-            latency_dict['min'] = latency_dict['min'] / 1000
-            latency_dict['median'] = latency_dict['median'] / 1000
-            latency_dict['75th'] = latency_dict['75th'] / 1000
-            latency_dict['95th'] = latency_dict['95th'] / 1000
-            latency_dict['99th'] = latency_dict['99th'] / 1000
+            log_info['latency_min'] = log_info['latency_min'] / 1000
+            log_info['latency_median'] = log_info['latency_median'] / 1000
+            log_info['latency_75th'] = log_info['latency_75th'] / 1000
+            log_info['latency_95th'] = log_info['latency_95th'] / 1000
+            log_info['latency_99th'] = log_info['latency_99th'] / 1000
         elif 's' == unit:
-            latency_dict['min'] = latency_dict['min'] * 1000
-            latency_dict['median'] = latency_dict['median'] * 1000
-            latency_dict['75th'] = latency_dict['75th'] * 1000
-            latency_dict['95th'] = latency_dict['95th'] * 1000
-            latency_dict['99th'] = latency_dict['99th'] * 1000
-        log_info['latency'] = latency_dict
+            log_info['latency_min'] = log_info['latency_min'] * 1000
+            log_info['latency_median'] = log_info['latency_median'] * 1000
+            log_info['latency_75th'] = log_info['latency_75th'] * 1000
+            log_info['latency_95th'] = log_info['latency_95th'] * 1000
+            log_info['latency_99th'] = log_info['latency_99th'] * 1000
     json_str = json.dumps(log_info)
     print(json_str)
-    send_http_req(json_str, url)
+    send_http_req(url, json_str)
 
 def execute_command(command: Command):
     '''
@@ -137,15 +137,20 @@ def execute_command(command: Command):
         'params': params.decode(encoding='utf8')
     }
     task_url = LOG_SERVER_URL + TASK_ADD_URL
-    (status_code, ret) = send_http_req(task_url, json_str=json.dumps(task_obj))
+    (status_code, text) = send_http_req(task_url, json_str=json.dumps(task_obj))
     if status_code == 200:
         print('add task %s success' % task_name)
-        # 获取任务在数据库中的id
-        if ret['errcode'] == 0:
-            task_id = ret['task_id']
-        else:
-            print('add task %s failed: %s' % (task_name, ret['errstr']))
-            return
+        try:
+            ret = json.loads(text)
+            # 获取任务在数据库中的id
+            if ret['errno'] == 0:
+                task_id = ret['id']
+            else:
+                print('add task %s failed: %s' % (task_name, ret['errstr']))
+                return
+        except Exception as err:
+            print(err)
+            traceback.print_stack()
     else:
         print('add task %s failed' % task_name)
         return
@@ -211,8 +216,9 @@ if __name__ == '__main__':
         type = args.prog
 
     # 获取脚本所在目录
-    script_dir = os.path.dirname(__file__)
-    result = re.match('^(.*)/\S{1,}/{0,1}$', script_dir)
+    script_dir = os.path.dirname(os.path.abspath(__file__))
+    print('script dir: %s' % script_dir)
+    result = re.match('^(.*)/\S+/?$', script_dir)
     os.chdir(result.group(1))
     print('cwd: %s' % os.getcwd())
 

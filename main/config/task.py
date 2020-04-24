@@ -322,8 +322,6 @@ class Task:
     @productor_rate.setter
     @typecheck(int, list)
     def productor_rate(self, productor_rate):
-        if isinstance(productor_rate, int) and productor_rate <= 0:
-            raise ValueError('productor rate must bigger than 0')
         self._productor_rate = productor_rate
 
     @property

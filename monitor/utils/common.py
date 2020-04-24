@@ -26,8 +26,8 @@ def get_rmq_process():
     rabbitmq = ['/opt/midware/rabbitmq/erlang/erts-10.4.4/bin/beam.smp', '/usr/lib/erlang/erts-7.3/bin/beam.smp']
     for process in psutil.process_iter():
         cmdline = process.cmdline()
-        if len(cmdline) > 0:
-            if cmdline[0] in rabbitmq:
+        if len(cmdline) > 2:
+            if cmdline[0] in rabbitmq and cmdline[1] != '--':
                 return process
     return None
 

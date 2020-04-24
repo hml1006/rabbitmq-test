@@ -7,9 +7,9 @@ log_server: http://127.0.0.1:8888
 # 任务列表
 task-list:
   -
-    name: queuetest1
+    name: 测试1
     # 测试时长 秒
-    time: 10
+    time: 100
     # 生产者和消费者在不同机器上时，此参数生效
     routing-key: keda.test.k
     # exchange
@@ -19,13 +19,13 @@ task-list:
     # 一次确认多个消息
     multi-ack: 100
     # 持久化消息和队列
-    persistent: true
+    persistent: false
     # 消息预取
     prefetch: 500
     # 消费者速率 msg/s, 每个消费者都是这个速率
     consumer-rate: 0
     # 发送速率 msg/s，每个消费者都是这个速率
-    productor-rate: 200
+    productor-rate: 0
     # 消息大小
     msg-size:
       -
@@ -52,8 +52,8 @@ task-list:
       # 消费者数量
       consumer: 4
   -
-    name: queuetest2
-    time: 15
+    name: 测试2
+    time: 150
     exchange: keda.exchg.test2
     routing-key: keda.test.k2
     # 消费者自动确认
@@ -65,7 +65,7 @@ task-list:
     # 消息预取
     prefetch: 1
     # 消费者速率 msg/s, 每个消费者都是这个速率
-    consumer-rate: 500
+    consumer-rate: 0
     # 发送速率 msg/s，每个消费者都是这个速率
     productor-rate:
       - # 发送间隔5秒，发送速率 1000 msg/s

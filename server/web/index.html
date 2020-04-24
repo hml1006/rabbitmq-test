@@ -1,0 +1,570 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+	<meta charset="utf-8">
+	<script src="/jquery-3.5.0.min.js"></script>
+	<script src="/echarts.min.js"></script>
+	<title>Rabbitmq测试结果</title>
+</head>
+
+<body>
+	<div id="container" style="width:100%">
+		<div id="header" style="background-color:hsl(191, 54%, 75%); text-align: center;">
+			<h1 style="margin-bottom:0;">Rabbitmq测试结果</h1>
+		</div>
+
+		<div style="display: flex;">
+			<div style="background-color:#e1ebf1;height:100%;width:300px;margin-left:200px;">
+				<div>
+					<h3 class="list">任务列表</h3>
+				</div>
+				<div id="tasks"></div>
+				<div>
+					<h3 class="list">节点列表</h3>
+				</div>
+				<div id="nodes"></div>
+			</div>
+
+			<div id="task-chart" style="height:100%;width:100%;min-height: 800px;">
+				<div>
+					<h4 id="task-name"></h4>
+				</div>
+				<div id="task-stat">
+					<div id="msg-rate" class="charts"></div>
+					<div id="msg-latency" class="charts"></div>
+				</div>
+			</div>
+			<div id="node-chart" style="height:100%;width:100%;min-height: 800px;">
+				<div>
+					<h4 id="node-name"></h4>
+				</div>
+				<table id="rmq-crash"></table>
+				<div id="node-resource">
+					<div id="cpu-resource" class="charts"></div>
+					<div id="store-resource" class="charts"></div>
+					<div id="msg-stat" class="charts"></div>
+					<div id="rate-stat" class="charts"></div>
+				</div>
+			</div>
+		</div>
+	</div>
+	<style type="text/css">
+		.list {
+			margin-left: 10px;
+		}
+
+		#rmq-crash {
+			margin-left: 50px;
+		}
+
+		
+		#node-resource {
+			margin-top: 50px;
+		}
+
+		#task-name,
+		#node-name {
+			height: 50px;
+			color: red;
+		}
+
+		.list-item {
+			height: 40px;
+			margin-top: 5px;
+			margin-bottom: 5px;
+			margin-left: 30px;
+			cursor: pointer;
+			background-color: #EEEEEE;
+		}
+
+		.list-item-select {
+			background-color: lightskyblue;
+		}
+
+		.list-item:hover {
+			background-color: deepskyblue;
+		}
+
+		.charts {
+			width: 75%;
+			height: auto;
+			min-height: 450px;
+		}
+
+		table {
+			border-collapse: collapse;
+			text-align: center;
+			table-layout: fixed;
+			width: 700px;
+		}
+
+		table td,
+		table th {
+			border: 1px solid #cad9ea;
+			color: #666;
+			height: 30px;
+		}
+	</style>
+	<script type="text/javascript">
+		// 全局任务列表
+		tasks = null;
+		// 节点列表
+		nodes = null;
+		// 缺省查询时间
+		time_from = null;
+		time_to = null;
+
+		// 查找任务名称
+		function findTaskName(taskId) {
+			if (tasks == null || tasks.length == 0) {
+				return null
+			}
+			for (var i = 0; i < tasks.length; i++) {
+				if (taskId == tasks[i].id) {
+					return tasks[i].name
+				}
+			}
+			return null
+		}
+
+		// 查找节点名称
+		function findNodeName(nodeId) {
+			if (nodes == null || nodes.length == 0) {
+				return null
+			}
+			for (var i = 0; i < nodes.length; i++) {
+				if (nodeId == nodes[i].id) {
+					return nodes[i].name
+				}
+			}
+			return null
+		}
+
+		// 选择任务
+		function selectTask(elementId) {
+			var id = elementId.substring(5)
+			var task_name = findTaskName(id)
+			$('#task-name').text(task_name)
+			$('.list-item').removeClass('list-item-select')
+
+			$('#' + elementId).addClass('list-item-select')
+			$('#node-chart').hide()
+			$('#task-chart').show()
+			$('#msg-rate').empty()
+			$('#msg-latency').empty()
+			getTaskSeqs(id, function (rateOption, latencyOption) {
+				$('#task-stat').empty()
+				$('#task-stat').append('<div id="msg-rate" class="charts"></div>')
+				$('#task-stat').append('<div id="msg-latency" class="charts"></div>')
+				var msgRateChart = echarts.init(document.getElementById('msg-rate'));
+				msgRateChart.setOption(rateOption);
+				var latencyChart = echarts.init(document.getElementById('msg-latency'))
+				latencyChart.setOption(latencyOption)
+			})
+		}
+
+		// 选择节点
+		function selectNode(elementId) {
+			var id = elementId.substring(5)
+			var node_name = findNodeName(id)
+			$('#node-name').text(node_name)
+
+			$('.list-item').removeClass('list-item-select')
+			$('#' + elementId).addClass('list-item-select')
+			$('#task-chart').hide()
+			$('#node-chart').show()
+			$('#cpu-resource').empty()
+			$('#store-resource').empty()
+			$('#msg-stat').empty()
+			$('#rate-stat').empty()
+			getCrahes(id)
+			getRmqStat(id, function (rmqSeqs) {
+				var time = []
+
+				// cpu使用率
+				var rmqCpu = []
+				var machineCpu = []
+
+				// 内存情况
+				var rmqMemUsed = []
+				var machineMemUsage = []
+				var machineMemTotal = 0
+
+				// 磁盘情况
+				var rmqDiskSpend = []
+				var machineDiskFree = []
+
+				// 消息数统计
+				var msgTotal = []
+				var msgReady = []
+				var msgUnacked = []
+
+				// 消息速率统计
+				var ratePulish = []
+				var rateDeliverManualAck = []
+				var rateConsumerAck = []
+
+				// 磁盘读写速度统计
+				var diskRead = []
+				var diskWrite = []
+
+				// 提取rmq统计数据
+				if (rmqSeqs != null && rmqSeqs.length > 0) {
+					for (var i = 0; i < rmqSeqs.length; i++) {
+						time.push(rmqSeqs[i].stat_time * 1000)
+						rmqCpu.push(rmqSeqs[i].cpu_usage)
+						rmqMemUsed.push(Math.round(rmqSeqs[i].mem_usage / 1024))
+						rmqDiskSpend.push(Math.round(rmqSeqs[i].disk_spend / 1024))
+						summary = rmqSeqs[i].msg_summary
+						if (summary != null) {
+							msgSummary = JSON.parse(summary)
+							msgTotal.push(msgSummary.total)
+							msgReady.push(msgSummary.ready)
+							msgUnacked.push(msgSummary.unacked)
+
+							ratePulish.push(msgSummary.publish_rate)
+							rateDeliverManualAck.push(msgSummary.deliver_manual_ack)
+							rateConsumerAck.push(msgSummary.consumer_ack)
+
+							diskRead.push(msgSummary.disk_read)
+							diskWrite.push(msgSummary.disk_write)
+						} else {
+							msgTotal.push(null)
+							msgReady.push(null)
+							msgUnacked.push(null)
+
+							ratePulish.push(null)
+							rateDeliverManualAck.push(null)
+							rateConsumerAck.push(null)
+
+							diskRead.push(null)
+							diskWrite.push(null)
+						}
+					}
+				}
+				// 创建cpu图表配置
+				var cpuOption = createEchartsTimeOption('CPU使用率统计', time)
+				var rmqCpuStat = createSerie('Rabbitmq CPU使用率统计', time, rmqCpu)
+				addStat(cpuOption, rmqCpuStat)
+				// 创建内存和磁盘图表配置
+				var storageOption = createEchartsTimeOption('内存磁盘统计', time)
+				var rmqMemStat = createSerie('Rabbitmq内存MB', time, rmqMemUsed)
+				var rmqDiskSpendStat = createSerie('Rabbitmq磁盘空间占用 MB', time, rmqDiskSpend)
+				addStat(storageOption, rmqMemStat)
+				addStat(storageOption, rmqDiskSpendStat)
+				// 创建消息速率统计
+				var msgOption = createEchartsTimeOption('消息统计', time)
+				var msgTotalStat = createSerie('Total', time, msgTotal)
+				var msgReadyStat = createSerie('Ready', time, msgReady)
+				var msgUnackedStat = createSerie('Unacked', time, msgUnacked)
+				addStat(msgOption, msgTotalStat)
+				addStat(msgOption, msgReadyStat)
+				addStat(msgOption, msgUnackedStat)
+				// 创建速率统计
+				var rateOption = createEchartsTimeOption('速率统计', time)
+				var ratePublishStat = createSerie('发布速率', time, ratePulish)
+				var rateDeliverManualAckStat = createSerie('投递手动ack速率', time, rateDeliverManualAck)
+				var rateConsumerAckStat = createSerie('消费者ack速率', time, rateConsumerAck)
+				var rateDiskReadStat = createSerie('磁盘读取速度', time, diskRead)
+				var rateDiskWriteStat = createSerie('磁盘写入速度', time, diskWrite)
+				addStat(rateOption, ratePublishStat)
+				addStat(rateOption, rateDeliverManualAckStat)
+				addStat(rateOption, rateConsumerAckStat)
+				addStat(rateOption, rateDiskReadStat)
+				addStat(rateOption, rateDiskWriteStat)
+
+				getMachineStat(id, function (machineSeqs) {
+					if (machineSeqs != null && machineSeqs.length > 0) {
+						var time = []
+						for (var i = 0; i < machineSeqs.length; i++) {
+							time.push(machineSeqs[i].stat_time * 1000)
+							machineCpu.push(machineSeqs[i].cpu_usage)
+							machineMemUsage.push(Math.round(machineSeqs[i].mem_usage / 1024))
+							machineDiskFree.push(Math.round(machineSeqs[i].disk_free / 1024))
+							if (machineMemTotal == 0) {
+								machineMemTotal = Math.round(machineSeqs[i].mem_total / (1024 * 1024))
+							}
+						}
+					}
+					var machineCpuStat = createSerie('物理服务器CPU使用率', time, machineCpu)
+					addStat(cpuOption, machineCpuStat)
+					var machineMemStat = createSerie('物理服务器内存使用 MB(' + '总内存' + machineMemTotal + 'GB)', time, machineMemUsage)
+					addStat(storageOption, machineMemStat)
+					var machineDiskFreeStat = createSerie('Rabbitmq数据分区剩余 MB', time, machineDiskFree)
+					addStat(storageOption, machineDiskFreeStat)
+
+					$('#node-resource').empty()
+					$('#node-resource').append('<div id="cpu-resource" class="charts"></div>')
+					$('#node-resource').append('<div id="store-resource" class="charts"></div>')
+					$('#node-resource').append('<div id="msg-stat" class="charts"></div>')
+					$('#node-resource').append('<div id="rate-stat" class="charts"></div>')
+
+					var cpuCharts = echarts.init(document.getElementById('cpu-resource'))
+					cpuCharts.setOption(cpuOption)
+					var storageCharts = echarts.init(document.getElementById('store-resource'))
+					storageCharts.setOption(storageOption)
+					var msgCharts = echarts.init(document.getElementById('msg-stat'))
+					msgCharts.setOption(msgOption)
+					var rateCharts = echarts.init(document.getElementById('rate-stat'))
+					rateCharts.setOption(rateOption)
+				})
+			})
+		}
+
+		// 查找物理服务器资源统计信息
+		function getMachineStat(nodeId, oncomplete) {
+			var seqs = null
+			$.get('/nodes/' + nodeId + '/machine/resources', { time_from: time_from, time_to: time_to }, function (response) {
+				if (response.errno != 0) {
+					console.log('get machine resource failed')
+				} else {
+					if (response.result != null & response.result.length > 0) {
+						seqs = response.result
+					}
+				}
+				if (oncomplete != null) {
+					oncomplete(seqs)
+				}
+			}).fail(function () {
+				if (oncomplete != null) {
+					oncomplete(null)
+				}
+			})
+		}
+
+		// 查找rmq资源统计信息
+		function getRmqStat(nodeId, oncomplete) {
+			var seqs = null
+			$.get('/nodes/' + nodeId + '/rabbitmq/resources', { time_from: time_from, time_to: time_to }, function (response) {
+				if (response.errno != 0) {
+					console.log('get rmq resource stat failed')
+				} else {
+					var seqs = response.result
+					if (response.result != null & response.result.length > 0) {
+						seqs = response.result
+					}
+				}
+				if (oncomplete != null) {
+					oncomplete(seqs)
+				}
+			}).fail(function () {
+				if (oncomplete != null) {
+					oncomplete(null)
+				}
+			})
+		}
+
+		// 查询节点崩溃历史
+		function getCrahes(nodeId) {
+			$.get('/nodes/' + nodeId + '/rabbitmq/crashes', function (response) {
+				// 清空之前的数据
+				$('#rmq-crash').empty()
+				if (response.errno != 0) {
+					console.log('get crashes failed')
+				} else {
+					// 添加表头
+					$('#rmq-crash').append('<tr><th>PID</th><th>进程启动时间</th><th>进程崩溃时间</th></tr>')
+					var crashes = response.result
+					if (crashes != null && crashes.length > 0) {
+						for (var i = 0; i < crashes.length; i++) {
+							var start_time = formatTime(crashes[i].start_time)
+							var crash_time = formatTime(crashes[i].crash_time)
+							$('#rmq-crash').append('<tr><td>' + crashes[i].pid + '</td><td>' + start_time + '</td><td>' + crash_time + '</td></tr>')
+						}
+					}
+				}
+			})
+		}
+
+		// unix时间转换
+		function formatTime(time) {
+			let unixtime = time
+			let unixTimestamp = new Date(unixtime * 1000)
+			let Y = unixTimestamp.getFullYear()
+			let M = ((unixTimestamp.getMonth() + 1) >= 10 ? (unixTimestamp.getMonth() + 1) : '0' + (unixTimestamp.getMonth() + 1))
+			let D = (unixTimestamp.getDate() >= 10 ? unixTimestamp.getDate() : '0' + unixTimestamp.getDate())
+			let H = unixTimestamp.getHours() >= 10 ? unixTimestamp.getHours() : '0' + unixTimestamp.getHours()
+			let m = unixTimestamp.getMinutes() >= 10 ? unixTimestamp.getMinutes() : '0' + unixTimestamp.getMinutes()
+			let s = unixTimestamp.getSeconds() >= 10 ? unixTimestamp.getSeconds() : '0' + unixTimestamp.getSeconds()
+			let toDay = Y + '-' + M + '-' + D + ' ' + H + ':' + m + ':' + s
+			return toDay
+		}
+
+		// 获取节点列表
+		function getNodes() {
+			$.get('/nodes', function (response) {
+				if (response.errno != 0) {
+					console.log('get nodes failed')
+				} else {
+					nodes = response.result
+					if (nodes != null && nodes.length > 0) {
+						for (var i = 0; i < nodes.length; i++) {
+							$('#nodes').append('<div class="item list-item"' + 'id="node-' + nodes[i].id + '"' + ' onclick="selectNode(this.id)">' + nodes[i].name + '</div>')
+						}
+					}
+				}
+			})
+		}
+
+		// 获取任务列表
+		function getTasks() {
+			$.get('/tasks', function (response) {
+				if (response.errno != 0) {
+					console.log('get tasks failed')
+				} else {
+					tasks = response.result
+					if (tasks != null) {
+						// 界面上添加任务列表
+						for (var i = 0; i < tasks.length; i++) {
+							$('#tasks').append('<div class="item list-item"' + 'id="task-' + tasks[i].id + '"' + ' onclick="selectTask(this.id)">' + tasks[i].name + '</div>')
+						}
+						// 默认选中第一个任务
+						if (tasks.length > 0) {
+							selectTask('task-' + tasks[0].id)
+						}
+					}
+				}
+			})
+		}
+
+		// 获取测试任务统计数据
+		function getTaskSeqs(id, oncomplete) {
+			$.get('/tasks/' + id + '/task_seqs', function (response) {
+				if (response.errno != 0) {
+					console.log('get task seqs failed')
+				} else {
+					seqs = response.result
+					if (seqs != null) {
+						var stat_time = []
+						var sent = []
+						var received = []
+						var latency_min = []
+						var latency_median = []
+						var latency_75th = []
+						var latency_95th = []
+						var latency_99th = []
+						for (var i = 0; i < seqs.length; i++) {
+							stat_time.push(seqs[i].stat_time * 1000)
+							sent.push(seqs[i].sent)
+							received.push(seqs[i].received)
+							latency_min.push(seqs[i].latency_min)
+							latency_median.push(seqs[i].latency_median)
+							latency_75th.push(seqs[i].latency_75th)
+							latency_95th.push(seqs[i].latency_95th)
+							latency_99th.push(seqs[i].latency_99th)
+						}
+						// 设置查询条件
+						time_from = seqs[0].stat_time
+						time_to = seqs[seqs.length - 1].stat_time
+
+						// 创建图表
+						var rateOption = createEchartsTimeOption('消息收发速率 msg/s', stat_time)
+						var sentStat = createSerie('消息发送速率', stat_time, sent)
+						var receivedStat = createSerie('消息接收速率', stat_time, received)
+						addStat(rateOption, sentStat)
+						addStat(rateOption, receivedStat)
+						var latencyOption = createEchartsTimeOption('延迟时间 ms', stat_time)
+						var statMin = createSerie('min', stat_time, latency_min)
+						var statMedian = createSerie('median', stat_time, latency_median)
+						var stat75th = createSerie('75th', stat_time, latency_75th)
+						var stat95th = createSerie('95th', stat_time, latency_95th)
+						var stat99th = createSerie('99th', stat_time, latency_99th)
+						addStat(latencyOption, statMin)
+						addStat(latencyOption, statMedian)
+						addStat(latencyOption, stat75th)
+						addStat(latencyOption, stat95th)
+						addStat(latencyOption, stat99th)
+
+						if (oncomplete != null) {
+							oncomplete(rateOption, latencyOption)
+						}
+					}
+				}
+			})
+		}
+
+		// 创建echarts 带时间轴的 option
+		function createEchartsTimeOption(title, time) {
+			option = {
+				title: {
+					text: title
+				},
+				tooltip: {
+					trigger: 'axis'
+				},
+				toolbox: {
+					show: true,
+					orient: 'horizontal',
+					feature: {
+						dataZoom: {
+							yAxisIndex: 'none'  // y轴不缩放，Index默认为0
+						},
+						restore: {},
+						saveAsImage: {}
+					}
+
+				},
+				legend: {
+					data: []
+				},
+				grid: {
+					left: '3%',
+					right: '4%',
+					bottom: '3%',
+					containLabel: true
+				},
+				toolbox: {
+					feature: {
+						saveAsImage: {}
+					}
+				},
+				xAxis: {
+					type: 'time',
+					boundaryGap: false,
+					data: time
+				},
+				yAxis: {
+					type: 'value'
+				},
+				series: [
+				]
+			}
+
+			return option
+		}
+
+		// 创建一个统计序列
+		function createSerie(title, time, value) {
+			if (time.length != value.length) {
+				console.log('create serie failed')
+			} else {
+				item = []
+				for (var i = 0; i < time.length; i++) {
+					item.push([time[i], value[i]])
+				}
+				return {
+					name: title,
+					type: 'line',
+					data: item
+				}
+			}
+		}
+
+		// 给echarts option添加一个折线
+		function addStat(option, item) {
+			// 顶部指标列表
+			option.legend.data.push(item.name)
+			option.series.push(item)
+			return option
+		}
+
+		// 加载任务列表
+		$(function () {
+			getTasks()
+			getNodes()
+		});
+	</script>
+</body>
+
+</html>
