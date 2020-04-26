@@ -74,7 +74,7 @@ graph TD
 export[报表生成脚本]
 ```
 
-## 2.1 测试计划配置格式
+## <span id="plan-config"> 2.1 测试计划配置格式</span>
 
 配置文件采用yaml格式：
 
@@ -488,7 +488,108 @@ mo_librabbitmq测试程序需提供和rabbitmq官方测试工具相同的参数�
 
 # 4 使用方法
 
+## 4.1 程序功能
 
+```bash
+$ ls
+docs  etc  main  mo_librabbitmq_test  monitor  rabbitmq-perf-test README.md  server
+```
+
+> docs 目录存放文档
+>
+> etc 目录存放配置文件
+>
+> main 目录为测试计划执行程序
+>
+> mo_librabbitmq_test 目录为mo_librabbitmq库测试程序目录
+>
+> monitor 为rabbitmq和物理服务器监控脚本
+>
+> rabbitmq-perf-test 目录为官方测试工具
+>
+> server 目录为数据收集和报表服务服务器
+
+## 4.2 启动数据采集和报表服务
+
+**配置文件**
+
+``` yaml
+# http服务器设置
+server:
+  ip: 0.0.0.0
+  port: 8888
+
+# 数据库设置
+database:
+  host: 127.0.0.1
+  port: 3306
+  name: rmqtest
+  user: root
+  password: root
+```
+
+> 需要预先创建好数据库，表结构会自动创建，该数据库用户需要有建表权限。
+
+**命令**
+
+``` bash
+$ python3 server/main.py -f etc/server.yaml
+server: 
+	ip: 0.0.0.0
+	port: 8888
+database: 
+	ip: 127.0.0.1
+	port: 3306
+	name: rmqtest
+	user: root
+	password: root
+```
+
+## 4.3 启动监控程序
+
+**配置**
+
+``` yaml
+# rabbitmq管理页配置
+rabbitmq:
+  host: 172.16.176.70
+  manage_port: 6674
+  username: dev
+  password: dev
+
+# 数据收集服务器地址
+collect:
+  host: 127.0.0.1
+  port: 8888
+```
+
+**命令**
+
+``` bash
+$ python3 monitor/main.py -f etc/monitor.yaml
+```
+
+> 监控程序会每隔5秒采集一次数据并上报服务器，rabbitmq如果有崩溃，也会被上报
+
+## 4.4 启动测试任务执行脚本
+
+**配置**
+
+[测试任务配置](#plan-config)
+
+**命令**
+
+``` bash
+$ python3 main/main.py -f etc/plan.yaml -r all -t standard
+```
+
+## 4.5 查看结果
+
+chrome 浏览器打开链接：
+
+[http://172.16.80.122:8888/](http://172.16.80.122:8888/)
+
+> IE 浏览器可能有兼容性问题，请使用chrome或者firefox
 
 # 5  注意事项
 
