@@ -527,7 +527,7 @@ class Task:
         if not url or len(url) == 0:
             raise ValueError('url error')
         sleep = yaml_data['sleep']
-        if not sleep:
+        if sleep == None:
             raise ValueError('duration error')
         task_list = yaml_data['task-list']
         if not task_list or len(task_list) == 0:

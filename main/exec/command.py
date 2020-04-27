@@ -1,7 +1,7 @@
 import config.task as rmqtask
 from utils.typecheck import typecheck
 
-PROGS = {'standard': 'rabbitmq-perf-test/bin/runjava com.rabbitmq.perf.PerfTest', 'mo_librabbitmq': 'mo_librabbitmq_test/librmq_test'}
+PROGS = {'standard': 'rabbitmq-perf-test/bin/runjava com.rabbitmq.perf.PerfTest', 'mo_librabbitmq': 'librmq_test/rmqtest'}
 
 class Command:
     def __init__(self):
@@ -60,7 +60,10 @@ class Command:
     @close_timeout.setter
     @typecheck(int)
     def close_timeout(self, close_timeout):
-        self._close_timeout = ' -st %d' % close_timeout
+        if self.type == 'standard':
+            self._close_timeout = ' -st %d' % close_timeout
+        else:
+            self._close_timeout = ' --st %d' % close_timeout
 
     @property
     def exchange(self):
@@ -125,6 +128,8 @@ class Command:
     def prefetch(self, prefetch):
         if prefetch > 0:
             self._prefetch = ' -q %d' % prefetch
+        else:
+            self._prefetch = ''
 
     @property
     def consumer_rate(self):
@@ -154,7 +159,10 @@ class Command:
         elif len(productor_rate) > 0:
             for item in productor_rate:
                 if isinstance(item, rmqtask.DynamicProdRate):
-                    item_rate = ' -vr %d:%d' % (item.rate, item.duration)
+                    if self.type == 'standard':
+                        item_rate = ' -vr %d:%d' % (item.rate, item.duration)
+                    else:
+                        item_rate = ' --vr %d:%d' % (item.rate, item.duration)
                     self._productor_rate = self._productor_rate + item_rate
 
     @property
@@ -167,7 +175,10 @@ class Command:
         if len(msg_properties) == 0:
             self._msg_properties = ''
         else:
-            properties = [' -mp ']
+            if self.type == 'standard':
+                properties = [' -mp ']
+            else:
+                properties = [' --mp ']
             for (k, v) in msg_properties:
                 field = '%s=%s' % (k, v)
                 properties.append(field)
@@ -189,7 +200,10 @@ class Command:
                 self._msg_size = ' -s %d' % msg_size
         elif len(msg_size) > 0:
             for item in msg_size:
-                item_size = ' -vs %d:%d' % (item.size, item.duration)
+                if self.type == 'standard':
+                    item_size = ' -vs %d:%d' % (item.size, item.duration)
+                else:
+                    item_size = ' --vs %d:%d' % (item.size, item.duration)
                 self._msg_size = self._msg_size + item_size
 
     @property
@@ -199,8 +213,8 @@ class Command:
     @sleep_time.setter
     @typecheck(int)
     def sleep_time(self, sleep_time):
-        if sleep_time <= 0:
-            self._sleep_time = 60
+        if sleep_time < 0:
+            self._sleep_time = 0
         else:
             self._sleep_time = sleep_time
 
@@ -214,8 +228,12 @@ class Command:
         if isinstance(queue, rmqtask.FixedQueue):
             self._queue = ' -u %s -x %d -y %d' % (queue.name, queue.productor_num, queue.consumer_num)
         elif isinstance(queue, rmqtask.DynamicQueue):
-            self._queue = ' -qp %s -qpf %d -qpt %d -x %d -y %d' % (queue.pattern, queue.queue_from, queue.queue_to, \
+            if self.type == 'standard':
+                self._queue = ' -qp %s -qpf %d -qpt %d -x %d -y %d' % (queue.pattern, queue.queue_from, queue.queue_to, \
                                                                    queue.productor_num, queue.consumer_num)
+            else:
+                self._queue = ' --qp %s --qpf %d --qpt %d -x %d -y %d' % (queue.pattern, queue.queue_from, queue.queue_to, \
+                                                                       queue.productor_num, queue.consumer_num)
 
     @property
     def url(self):

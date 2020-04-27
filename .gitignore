@@ -1,3 +1,4 @@
 .idea
 __pycache__
+.vscode
 mo_librabbitmq_test/target/

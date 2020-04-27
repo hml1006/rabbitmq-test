@@ -7,7 +7,8 @@ edition = "2018"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
+tokio = { version = "0.2.19", features = ["full"] }
 libc = "0.2.69"
-clap-v3 = "3.0.0"
-dashmap = "3.2.0"
-lazy-static = "1.4.0"
+clap = { git = "https://github.com/clap-rs/clap/" }
+dashmap = "3.11.1"
+lazy_static = "1.4.0"

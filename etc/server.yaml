@@ -2,8 +2,6 @@
 server:
   ip: 0.0.0.0
   port: 8888
-  # html/js/css/图片目录
-  html: /home/louis/code/rabbitmq-test/server/web
 
 # 数据库设置
 database:

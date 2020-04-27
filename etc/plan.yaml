@@ -1,5 +1,5 @@
 # 每项任务间隔, 确保上一项测试已经结束，服务器负载恢复正常
-sleep: 10
+sleep: 0
 # rabbitmq服务器地址
 url: amqp://localhost:5671
 # 日志服务器地址
@@ -7,7 +7,7 @@ log_server: http://127.0.0.1:8888
 # 任务列表
 task-list:
   -
-    name: 测试1
+    name: 测试11
     # 测试时长 秒
     time: 100
     # 生产者和消费者在不同机器上时，此参数生效
@@ -21,7 +21,7 @@ task-list:
     # 持久化消息和队列
     persistent: false
     # 消息预取
-    prefetch: 500
+    prefetch: 0
     # 消费者速率 msg/s, 每个消费者都是这个速率
     consumer-rate: 0
     # 发送速率 msg/s，每个消费者都是这个速率
@@ -52,7 +52,7 @@ task-list:
       # 消费者数量
       consumer: 4
   -
-    name: 测试2
+    name: 测试12
     time: 150
     exchange: keda.exchg.test2
     routing-key: keda.test.k2
