@@ -8,8 +8,8 @@ INCLUDE_DIR += ./include
 
 C_FLAGS = -g -Wall -std=c++11
 LD_FLAFS = 
-LD_LIBS =
-INCLUDES = -I$(INCLUDE_DIR)
+LD_LIBS = -lpthread -L./libs -levent_core -lrabbitmq_r -levent_pthreads -lkdvlog -lkprop -losp
+INCLUDES = -I$(INCLUDE_DIR) -I$(INCLUDE_DIR)/libevent2 -I$(INCLUDE_DIR)/libevent2/linux
 
 ifeq ($(CC), g++)
 	TYPE = cpp

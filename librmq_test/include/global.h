@@ -1,19 +1,50 @@
 
-#ifndef STAT_H
-#define STAT_H
+#ifndef GLOBAL_H
+#define GLOBAL_H
 
 #include <mutex>
 #include <string>
 #include <vector>
 #include <map>
 #include <iostream>
+#include <memory>
+
+#include "amqp_util.h"
 
 using namespace std;
 
+// 默认每个线程每秒只能处理10万条消息
+#define MAX_RECEIVE_MSGS_PER_THREAD 100000
+
 enum Role {
     ALL, // 既是生产者又是消费者
-    PRODUCTOR, // 生产者
-    CONSUMER, // 消费者
+    PRODUCTOR_ROLE, // 生产者
+    CONSUMER_ROLE, // 消费者
+};
+
+
+class MqInfo 
+{
+public:
+    MqInfo()
+    {
+    }
+
+    ~MqInfo()
+    {
+        mq_deinit(this->msgQueue.get());
+    }
+
+    void set_msg_queue(shared_ptr<MQ> msgQueue)
+    {
+        this->msgQueue = msgQueue;
+        mq_init(this->msgQueue.get());
+    }
+private:
+    string queue;
+    Role role;
+    amqp_connection_state_t connection;
+    shared_ptr<MQ> msgQueue;
 };
 
 // 可变生产者速率
@@ -45,8 +76,8 @@ private:
         this->productor_rate = 0;
         
         this->message_size = 20;
-        this->productor_number = 1;
-        this->consumer_number = 1;
+        this->productors = 1;
+        this->consumers = 1;
         this->queue_name_from = 0;
         this->queue_name_to = 0;
     }
@@ -62,7 +93,7 @@ public:
     
     void print()
     {
-        cout << "rote: \t" << this->role << endl;
+        cout << "role: \t" << this->role << endl;
         cout << "task_id:\t" << this->task_id << endl;
         cout << "run duration:\t" << this->run_duration << endl;
         cout << "exchage:\t" << this->exchange << endl;
@@ -121,8 +152,8 @@ public:
             cout << "queue from:\t" << this->queue_name_from << endl;
             cout << "queue to:\t" << this->queue_name_to << endl;
         }
-        cout << "productor num:\t" << this->productor_number << endl;
-        cout << "consumer num:\t" << this->consumer_number << endl;
+        cout << "productor num:\t" << this->productors << endl;
+        cout << "consumer num:\t" << this->consumers << endl;
         cout << "amqp url:\t" << this->amqp_url << endl;
     }
     
@@ -134,10 +165,10 @@ public:
     int close_timeout; // 关闭超时时间
     string exchange; // exchange名称
     string routing_key; // routing-key
-    bool auto_ack; // auto ack
-    int multi_ack;
+    bool auto_ack; // auto ack, 消费者
+    int multi_ack;  // 消费者每次确认多少条
     bool persistent; // 消息持久化
-    int prefetch; 
+    int prefetch;   // 有这么多条消息未被消费者ack，生产者停止发送
     int consumer_rate; // 消费者速率
     int productor_rate; // 生产者速率
     vector<VariableRate> vr; // 可变生产者速率
@@ -145,67 +176,39 @@ public:
     int message_size; // 消息大小
     vector<VariableSize> vs; // 可变消息大小
     string queue_name;
-    int productor_number;
-    int consumer_number;
+    size_t productors;
+    size_t consumers;
     string queue_name_pattern;
     int queue_name_from;
     int queue_name_to;
     string amqp_url;
 };
 
-// 全局统计信息
-class GlobalStat
+// 整个测试过程中每一秒都有一项
+class ThreadStatPerSecond
 {
 public:
-    inline void inc_sent() {
-        lock_guard<mutex> lk(lock);
-        sent++;
-    }
-    
-    inline void inc_received() 
+    ThreadStatPerSecond()
     {
-        lock_guard<mutex> lk(lock);
-        received++;
+        msg_sent = 0;
+        msg_received = 0;
+        memset(latency_list, 0, sizeof(latency_list));
     }
 
 public:
-    static inline GlobalStat *get_instance()
-    {
-        if (GlobalStat::s_instance == nullptr)
-        {
-            GlobalStat::s_instance = new GlobalStat();
-        }
-        return GlobalStat::s_instance;
-    }
-    
-private:
-    static GlobalStat *s_instance;
-    
-private:
-    GlobalStat()
-    {
-        sent = 0;
-        received = 0;
-        latency_min = 0;
-        latency_median = 0;
-        latency_75th = 0;
-        latency_95th = 0;
-        latency_99th = 0;
-    }
-    
-private:
-    mutex lock;
-    
-    // 已发送消息数
-    int sent;
-    // 已接收消息数
-    int received;
-    // 延迟
-    int latency_min;
-    int latency_median;
-    int latency_75th;
-    int latency_95th;
-    int latency_99th;
+    // 这一秒发送消息数
+    int msg_sent;
+    // 这一秒接收消息数
+    int msg_received;
+    // 消息延迟列表
+    // 收到的每条消息都会把延迟时间加到列表
+    int latency_list[MAX_RECEIVE_MSGS_PER_THREAD];
 };
-#endif /* STAT_H */
 
+// 根据运行的时长创建thread stat数组
+int init_global_thread_stat(int run_duration);
+
+// 获取thread stat数组
+ThreadStatPerSecond **get_global_thread_stat();
+
+#endif /* GLOBAL_H */
