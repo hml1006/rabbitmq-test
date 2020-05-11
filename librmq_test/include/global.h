@@ -8,6 +8,7 @@
 #include <map>
 #include <iostream>
 #include <memory>
+#include <unordered_map>
 
 #include "amqp_util.h"
 
@@ -26,25 +27,43 @@ enum Role {
 class MqInfo 
 {
 public:
-    MqInfo()
+    MqInfo(Role role, string queue, amqp_connection_state_t connection)
     {
+        this->connection = connection;
+        this->queue = queue;
+        this->msg_queue = nullptr;
     }
 
     ~MqInfo()
     {
-        mq_deinit(this->msgQueue.get());
+        mq_deinit(this->msg_queue.get());
     }
 
     void set_msg_queue(shared_ptr<MQ> msgQueue)
     {
-        this->msgQueue = msgQueue;
-        mq_init(this->msgQueue.get());
+        this->msg_queue = msgQueue;
+        mq_init(this->msg_queue.get());
+    }
+
+    void set_amqp_connection(amqp_connection_state_t connection)
+    {
+        this->connection = connection;
+    }
+
+    amqp_connection_state_t get_amqp_connection()
+    {
+        return this->connection;
+    }
+
+    Role get_role()
+    {
+        return this->role;
     }
 private:
     string queue;
     Role role;
     amqp_connection_state_t connection;
-    shared_ptr<MQ> msgQueue;
+    shared_ptr<MQ> msg_queue;
 };
 
 // 可变生产者速率
@@ -192,7 +211,7 @@ public:
     {
         msg_sent = 0;
         msg_received = 0;
-        memset(latency_list, 0, sizeof(latency_list));
+        latency_list = vector<int>(MAX_RECEIVE_MSGS_PER_THREAD);
     }
 
 public:
@@ -202,13 +221,54 @@ public:
     int msg_received;
     // 消息延迟列表
     // 收到的每条消息都会把延迟时间加到列表
-    int latency_list[MAX_RECEIVE_MSGS_PER_THREAD];
+    vector<int> latency_list;
 };
 
-// 根据运行的时长创建thread stat数组
-int init_global_thread_stat(int run_duration);
+// 全局线程数据
+class ThreadGlobal
+{
+public:
+    ThreadGlobal(size_t secs)
+    {
+        this->every_sec_stat = vector<shared_ptr<ThreadStatPerSecond>>(secs);
+    }
 
-// 获取thread stat数组
-ThreadStatPerSecond **get_global_thread_stat();
+    void add_mq_info(int sockfd, shared_ptr<MqInfo> mq_info)
+    {
+        mq_list.insert(pair<int, shared_ptr<MqInfo>>(sockfd, mq_info));
+    }
+
+    shared_ptr<MqInfo> get_mq_info(int sockfd)
+    {
+        return mq_list[sockfd];
+    }
+
+    void remove_mq_info(int sockfd)
+    {
+        mq_list.erase(sockfd);
+    }
+
+    shared_ptr<ThreadStatPerSecond> get_sec_stat(int secs)
+    {
+        if (secs >=0 && secs < (int)this->every_sec_stat.size())
+        {
+            return this->every_sec_stat[secs];
+        }
+        return nullptr;
+    }
+private:
+    // 线程所属生产者消费者列表
+    unordered_map<int, shared_ptr<MqInfo>> mq_list;
+    // 每一秒线程统计数据
+    vector<shared_ptr<ThreadStatPerSecond>> every_sec_stat;
+};
+
+void init_mq_thread_num(int thread_num);
+int get_mq_thread_num();
+int get_inited_mq_thread_num();
+void add_thread_stat(pthread_t tid, shared_ptr<ThreadGlobal> thread_global);
+shared_ptr<ThreadGlobal> get_thread_stat(pthread_t tid);
+void init_start_time();
+time_t get_start_time();
 
 #endif /* GLOBAL_H */

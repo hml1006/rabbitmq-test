@@ -7,6 +7,7 @@
 #include <sys/sysinfo.h>
 #include <pthread.h>
 #include <sched.h>
+#include <unistd.h>
 #include <cstdio>
 #include <memory>
 
@@ -95,11 +96,6 @@ void parse(int argc, char* argv[])
             if (config->run_duration <= 0)
             {
                 cout << "run duration must bigger than 0" << endl;
-                exit(-1);
-            }
-            if (init_global_thread_stat(config->run_duration) != 0)
-            {
-                cout << "init global thread stat failed" << endl;
                 exit(-1);
             }
         }
@@ -388,30 +384,6 @@ vector<QueueInfo> make_queue_info(vector<string> &queues)
     return infos;
 }
 
-// vector 切片
-template<typename T>
-vector<T> slice(vector<T> const &v, int m, int n)
-{
-	auto first = v.cbegin() + m;
-	auto last = v.cbegin() + n + 1;
-
-	vector<T> vec(first, last);
-	return vec;
-}
-
-// 线程函数
-void *thread_func(void *arg)
-{
-    shared_ptr<ThreadArg> thread_arg((ThreadArg *)arg);
-    thread_arg->print();
-    
-    unordered_map<MQ *, shared_ptr<MqInfo>> thread_mq_infos;
-
-    event_base *evbase = event_base_new();
-
-    return NULL;
-}
-
 // 创建线程并绑定cpu
 int create_thread(pthread_t &tid, int cpu, void *(*start_routine) (void *), void *arg)
 {
@@ -426,9 +398,83 @@ int create_thread(pthread_t &tid, int cpu, void *(*start_routine) (void *), void
     if (ret != 0)
     {
         cout << "create pthread failed, errno: " << ret << endl;
-        return -1;
+        abort();
     }
+
     return 0;
+}
+
+// vector 切片
+template<typename T>
+vector<T> slice(vector<T> const &v, int m, int n)
+{
+	auto first = v.cbegin() + m;
+	auto last = v.cbegin() + n + 1;
+
+	vector<T> vec(first, last);
+	return vec;
+}
+
+void *send_msg_thread_func(void *arg)
+{
+    shared_ptr<vector<MQ *>> mq_list((vector<MQ *> *) arg);
+
+    // TODO 发消息
+
+    return NULL;
+}
+
+// 线程函数
+void *thread_func(void *arg)
+{
+    shared_ptr<ThreadArg> thread_arg((ThreadArg *)arg);
+    thread_arg->print();
+    GlobalConfig *config = GlobalConfig::get_instance();
+    
+    // 初始化线程统计
+    shared_ptr<ThreadGlobal> global(new ThreadGlobal((size_t)(config->run_duration)));
+    add_thread_stat(pthread_self(), global);
+
+    event_base *evbase = event_base_new();
+    vector<MQ *> *mq_list = new vector<MQ *>;
+    for (auto it = thread_arg->queues.begin(); it != thread_arg->queues.end(); it++)
+    {
+        for (int productors = 0; productors < it->productors; productors++)
+        {
+            MQ *mq = new MQ;
+            mq_list->push_back(mq);
+            int ret = create_productor(evbase, config->amqp_url, config->exchange, it->queue, config->routing_key, mq);
+            if (ret != 0)
+            {
+                cout << "create productor failed, queue: " << it->queue << endl;
+            }
+        }
+        for (int consumers = 0; consumers < it->consumers; consumers++)
+        {
+            int ret = create_consumer(evbase, config->amqp_url, config->exchange, it->queue, config->routing_key);
+            if (ret != 0)
+            {
+                cout << "create consumer failed, queue: " << it->queue << endl;
+            }
+        }
+    }
+
+    // 创建消息发送线程
+    if (mq_list->size() > 0)
+    {
+        pthread_t send_msg_thread;
+        int ret = create_thread(send_msg_thread, thread_arg->cpu, send_msg_thread_func, (void *) mq_list);
+        if (ret < 0)
+        {
+            cout << "create send msg thread failed, exiting" << endl;
+            return NULL;
+        }
+    }
+
+    // 进入事件循环
+    amqp_evbase_loop(evbase);
+
+    return NULL;
 }
 
 int main(int argc, char* argv[])
@@ -462,12 +508,14 @@ int main(int argc, char* argv[])
 
     // 线程数取cpu核数和队列数的小值
     size_t thread_num = ((size_t)cpu_num > infos.size())? infos.size() : (size_t)cpu_num;
+    init_mq_thread_num(thread_num);
 
     // 线程将会均分队列信息
     size_t queue_info_per_thread = infos.size() / thread_num;
     size_t rest_queue_info = infos.size() % thread_num;
 
-    GlobalConfig *config = GlobalConfig::get_instance();
+    // GlobalConfig *config = GlobalConfig::get_instance();
+    init_start_time();
 
     cout << "will create thread: " << thread_num << endl;
     // 每个核创建一个线程
@@ -479,7 +527,7 @@ int main(int argc, char* argv[])
         vector<QueueInfo> thread_queue = slice(infos, begin, begin + len - 1);
 
         // 构造线程参数
-        ThreadArg *arg = new ThreadArg(i, config->role, thread_queue);
+        ThreadArg *arg = new ThreadArg(i, thread_queue);
         pthread_t tid;
         cout << "creating thread: " << i << endl;
         int ret = create_thread(tid, i, thread_func, (void *)arg);

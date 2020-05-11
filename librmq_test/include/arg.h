@@ -16,6 +16,11 @@ struct QueueInfo
     int productors;
 
 public:
+    QueueInfo()
+    {
+        consumers = 0;
+        productors = 0;
+    }
     void print()
     {
         cout << "queue: " << this->queue << "  productors: " << this->productors << " consumers: " << this->consumers << endl;
@@ -24,35 +29,17 @@ public:
 
 struct ThreadArg
 {
-    int cpu; // cpu 核心编号
-    // 角色
-    Role role;
+    int cpu;
     // 队列信息
     vector<QueueInfo> queues;
 
 public:
-    ThreadArg(int cpu, Role role, vector<QueueInfo> queues):
-        cpu(cpu), role(role), queues(queues)
+    ThreadArg(int cpu, vector<QueueInfo> queues):
+        cpu(cpu), queues(queues)
     {}
 
     void print()
     {
-        cout << "thread args， core =>" << this->cpu << endl;
-        switch (this->role)
-        {
-        case Role::PRODUCTOR_ROLE:
-            cout << "role: productor" << endl;
-            break;
-        case Role::CONSUMER_ROLE:
-            cout << "role: consumer" << endl;
-            break;
-        case Role::ALL:
-            cout << "role: all" << endl;
-            break;
-        default:
-            break;
-        }
-
         for (size_t i = 0; i < this->queues.size(); i++)
         {
             queues[i].print();

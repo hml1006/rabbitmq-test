@@ -1036,7 +1036,9 @@ AMQP_PUBLIC_FUNCTION
 char* 
 AMQP_CALL amqp_get_tag( amqp_connection_state_t conn );
 
-
+AMQP_PUBLIC_FUNCTION
+char* 
+AMQP_CALL amqp_get_queue_name( amqp_connection_state_t conn );
 
 AMQP_PUBLIC_FUNCTION
 try_write_result_enum 
