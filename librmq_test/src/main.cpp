@@ -10,6 +10,7 @@
 #include <unistd.h>
 #include <cstdio>
 #include <memory>
+#include <algorithm>
 
 #include <unistd.h>
 
@@ -22,6 +23,14 @@ using namespace std;
 
 // 最大队列名长度
 #define MAX_QUEUE_NAME_LEN 250
+
+struct SendMsgThreadArg
+{
+    // event base所在线程
+    pthread_t producer_tid;
+    // 消息队列列表
+    shared_ptr<vector<MQ *>> mq_list;
+};
 
 // 拆分字符串
 vector<string> str_split(const string& in, const string& delim) {
@@ -415,11 +424,102 @@ vector<T> slice(vector<T> const &v, int m, int n)
 	return vec;
 }
 
+// 发送一条消息并更新统计
+int send_one_msg(MQ *mq, MQ_ITEM *item, shared_ptr<ThreadStatPerSecond> stat)
+{
+    if (mq == NULL || item == NULL || stat == nullptr)
+    {
+        return -1;
+    }
+
+    // 写入时间戳
+    time_t *content = (time_t *)item->content.bytes;
+    struct timeval tv;
+    struct timezone tz;
+    gettimeofday(&tv, &tz);
+    *content = htonl(tv.tv_sec);
+    content++;
+    *content = htonl(tv.tv_usec);
+
+    // 发送消息并更新统计
+    int ret = mq_push(mq, item);
+    if (ret == 0)
+    {
+        stat->msg_sent++;
+    }
+
+    return ret;
+}
+
+// 消息发送线程函数
 void *send_msg_thread_func(void *arg)
 {
-    shared_ptr<vector<MQ *>> mq_list((vector<MQ *> *) arg);
+    shared_ptr<SendMsgThreadArg> thread_arg((SendMsgThreadArg *)arg);
+    GlobalConfig *config = GlobalConfig::get_instance();
 
-    // TODO 发消息
+    shared_ptr<ThreadGlobal> global = get_thread_stat(thread_arg->producer_tid);
+
+    shared_ptr<vector<MQ_ITEM *>> msg_list = nullptr;
+    while (time(NULL) - get_start_time() <= config->run_duration)
+    {
+        // 默认速度
+        size_t producer_rate = config->productor_rate;
+        // 运行时长
+        size_t uptime = time(NULL) - get_start_time();
+        // 检查是否区间限速
+        if (config->vr.size() > 0)
+        {
+            size_t rate_duration = 0;
+            for (size_t i = 0; i < config->vr.size(); i++)
+            {
+                rate_duration += config->vr[i].duration;
+                if (uptime <= rate_duration)
+                {
+                    producer_rate = config->vr[i].rate;
+                }
+            }
+        }
+
+        shared_ptr<ThreadStatPerSecond> stat = global->get_sec_stat(uptime);
+        // 速率检查
+        if (producer_rate != 0)
+        {
+            // 这一秒发送数量 >= 队列速度 × 队列数量, 说明达到了限速
+            if (stat->msg_sent >= (producer_rate * thread_arg->mq_list->size()))
+            {
+                usleep(10 * 1000);
+                continue;
+            }
+        }
+
+        // 每个队列发送一条消息
+        for (auto it = thread_arg->mq_list->begin(); it != thread_arg->mq_list->end(); it++)
+        {
+            if (msg_list == nullptr || msg_list->size() == 0)
+            {
+                msg_list = nullptr;
+                // 循环获取消息列表
+                while (msg_list == nullptr)
+                {
+                    msg_list = get_msg_cache();
+                    if (msg_list == nullptr)
+                    {
+                        usleep(30 * 1000);
+                    }
+                }
+            }
+            // 发送并删除消息
+            MQ_ITEM *item = (*msg_list)[msg_list->size() - 1];
+            send_one_msg(*it, item, stat);
+            msg_list->pop_back();
+        }
+
+    }
+    // 清空没有用完的消息
+    if (msg_list != nullptr && msg_list->size() > 0)
+    {
+        drop_msg_list(*msg_list);
+    }
 
     return NULL;
 }
@@ -463,7 +563,10 @@ void *thread_func(void *arg)
     if (mq_list->size() > 0)
     {
         pthread_t send_msg_thread;
-        int ret = create_thread(send_msg_thread, thread_arg->cpu, send_msg_thread_func, (void *) mq_list);
+        SendMsgThreadArg *send_msg_thread_arg = new SendMsgThreadArg;
+        send_msg_thread_arg->producer_tid = pthread_self();
+        send_msg_thread_arg->mq_list = shared_ptr<vector<MQ *>>(mq_list);
+        int ret = create_thread(send_msg_thread, thread_arg->cpu, send_msg_thread_func, (void *) send_msg_thread_arg);
         if (ret < 0)
         {
             cout << "create send msg thread failed, exiting" << endl;
@@ -475,6 +578,122 @@ void *thread_func(void *arg)
     amqp_evbase_loop(evbase);
 
     return NULL;
+}
+
+static int s_current_sec = 0;
+void print_log()
+{
+    auto threads_stat = get_all_thread_stat();
+    size_t sent = 0;
+    size_t received = 0;
+    int latency_min = 0;
+    int latency_median = 0;
+    int latency_75th = 0;
+    int latency_95th = 0;
+    int latency_99th = 0;
+    vector<int> latency_list;
+    for (auto it = threads_stat.begin(); it != threads_stat.end(); it++)
+    {
+        shared_ptr<ThreadGlobal> per_thread = it->second;
+        shared_ptr<ThreadStatPerSecond> current_sec = per_thread->get_sec_stat(s_current_sec);
+        if (current_sec == nullptr)
+        {
+            cout << "current sec stat null" << endl;
+            break;
+        }
+        // 合并全部线程的延迟列表
+        latency_list.insert(latency_list.end(), current_sec->latency_list.begin(), current_sec->latency_list.end());
+        sent += current_sec->msg_sent;
+        received += current_sec->msg_received;
+    }
+
+    GlobalConfig *config = GlobalConfig::get_instance();
+    // 计算延迟
+    if (config->role == Role::ALL || config->role == Role::CONSUMER_ROLE)
+    {
+        // 按照从小到达排序延迟时间
+        sort(latency_list.begin(), latency_list.end());
+        if (latency_list.size() == 0)
+        {
+            cout << "latency list empty" << endl;
+            return;
+        }
+
+        latency_min = latency_list[0];
+        latency_median = latency_list[latency_list.size() * 0.5];
+        latency_75th = latency_list[latency_list.size() * 0.75];
+        latency_95th = latency_list[latency_list.size() * 0.95];
+        latency_99th = latency_list[latency_list.size() * 0.99];
+    }
+    s_current_sec++;
+    // id: queuetest2, time: 2.000s, sent: 1001 msg/s, received: 501 msg/s, min/median/75th/95th/99th consumer latency: 447660/696961/821878/921988/941319 µs
+    // id: test-134948-252, time: 1.477s, sent: 131940 msg/s
+    // id: test-134939-786, time: 11.555s, received: 41666 msg/s, min/median/75th/95th/99th consumer latency: 1637/2060/2270/2386/2407 ms
+    if (config->role == Role::ALL)
+    {
+        cout << "id: " << config->task_id << ", time: " << s_current_sec << ", sent: " << sent << " msg/s, received: "  \
+            << received << "msg/s, min/median/75th/95th/99th consumer latency: " \
+            << latency_min << "/" << latency_median << "/" << latency_75th << "/" << latency_95th << "/" << latency_99th << " ms" << endl;
+
+    }
+    else if (config->role == Role::CONSUMER_ROLE)
+    {
+        cout << "id: " << config->task_id << ", time: " << s_current_sec << ", received: "  \
+            << received << "msg/s, min/median/75th/95th/99th consumer latency: " \
+            << latency_min << "/" << latency_median << "/" << latency_75th << "/" << latency_95th << "/" << latency_99th << " ms" << endl;
+    }
+    else
+    {
+        cout << "id: " << config->task_id << ", time: " << s_current_sec << ", sent: " << sent << " msg/s" << endl;
+    }
+    
+
+}
+
+void main_loop()
+{
+    GlobalConfig *config = GlobalConfig::get_instance();
+
+    // 循环创建缓存消息
+    while (time(NULL) - get_start_time() <= config->run_duration + 1)
+    {
+        size_t cache_queue_num = get_cache_group_num();
+        // 缓存的消息组数小于消息线程数两倍才需要创建缓存消息
+        if (cache_queue_num < get_mq_thread_num() * 2)
+        {
+            // 设置默认消息大小
+            size_t msg_size = config->message_size;
+            size_t size_duration = 0;
+            size_t uptime = time(NULL) - get_start_time();
+            // 如果是动态消息大小， 根据运行时长找到对应的大小
+            if (config->vs.size() > 0)
+            {
+                for (size_t i = 0; i < config->vs.size(); i++)
+                {
+                    size_duration += config->vs[i].duration;
+                    if (uptime <= size_duration)
+                    {
+                        msg_size = config->vs[i].size;
+                        break;
+                    }
+                }
+            }
+            // 构造消息并加到缓存
+            shared_ptr<vector<MQ_ITEM *>> msg_list = make_msg_list(DEFAULT_MSG_CACHE_QUEUE_SIZE, msg_size);
+            add_msg_cache(msg_list);
+        }
+        else
+        {
+            usleep(10 * 1000);
+        }
+        
+        int current_sec = time(NULL) - get_start_time();
+        // 晚两秒打印日志, 避免临界情况
+        if (current_sec > 0 && current_sec > (s_current_sec + 2))
+        {
+            print_log();
+        }
+    }
 }
 
 int main(int argc, char* argv[])
@@ -538,7 +757,11 @@ int main(int argc, char* argv[])
         }
     }
 
+    main_loop();
 
-    sleep(3);
+    // 休眠指定时间退出
+    int close_timeout = GlobalConfig::get_instance()->close_timeout;
+    sleep(close_timeout <= 0? 5 : close_timeout);
+
     return 0;
 }

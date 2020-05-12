@@ -17,6 +17,9 @@ using namespace std;
 // 默认每个线程每秒只能处理10万条消息
 #define MAX_RECEIVE_MSGS_PER_THREAD 100000
 
+// 每组缓存消息条数
+#define DEFAULT_MSG_CACHE_QUEUE_SIZE 1000
+
 enum Role {
     ALL, // 既是生产者又是消费者
     PRODUCTOR_ROLE, // 生产者
@@ -189,7 +192,7 @@ public:
     bool persistent; // 消息持久化
     int prefetch;   // 有这么多条消息未被消费者ack，生产者停止发送
     int consumer_rate; // 消费者速率
-    int productor_rate; // 生产者速率
+    size_t productor_rate; // 生产者速率
     vector<VariableRate> vr; // 可变生产者速率
     map<string, string> messsage_properties; // 消息属性
     int message_size; // 消息大小
@@ -216,9 +219,9 @@ public:
 
 public:
     // 这一秒发送消息数
-    int msg_sent;
+    size_t msg_sent;
     // 这一秒接收消息数
-    int msg_received;
+    size_t msg_received;
     // 消息延迟列表
     // 收到的每条消息都会把延迟时间加到列表
     vector<int> latency_list;
@@ -233,21 +236,6 @@ public:
         this->every_sec_stat = vector<shared_ptr<ThreadStatPerSecond>>(secs);
     }
 
-    void add_mq_info(int sockfd, shared_ptr<MqInfo> mq_info)
-    {
-        mq_list.insert(pair<int, shared_ptr<MqInfo>>(sockfd, mq_info));
-    }
-
-    shared_ptr<MqInfo> get_mq_info(int sockfd)
-    {
-        return mq_list[sockfd];
-    }
-
-    void remove_mq_info(int sockfd)
-    {
-        mq_list.erase(sockfd);
-    }
-
     shared_ptr<ThreadStatPerSecond> get_sec_stat(int secs)
     {
         if (secs >=0 && secs < (int)this->every_sec_stat.size())
@@ -257,17 +245,16 @@ public:
         return nullptr;
     }
 private:
-    // 线程所属生产者消费者列表
-    unordered_map<int, shared_ptr<MqInfo>> mq_list;
     // 每一秒线程统计数据
     vector<shared_ptr<ThreadStatPerSecond>> every_sec_stat;
 };
 
 void init_mq_thread_num(int thread_num);
-int get_mq_thread_num();
-int get_inited_mq_thread_num();
+size_t get_mq_thread_num();
+size_t get_inited_mq_thread_num();
 void add_thread_stat(pthread_t tid, shared_ptr<ThreadGlobal> thread_global);
 shared_ptr<ThreadGlobal> get_thread_stat(pthread_t tid);
+unordered_map<pthread_t, shared_ptr<ThreadGlobal>> &get_all_thread_stat();
 void init_start_time();
 time_t get_start_time();
 

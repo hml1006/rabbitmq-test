@@ -31,6 +31,14 @@ void connection_suc_cb(amqp_connection_state_t conn, char *desc );
 
 void connection_disc_cb(amqp_connection_state_t conn, const char *expect, const char *recv);
 
-MQ_ITEM *perpare_msg();
+void drop_msg_list(vector<MQ_ITEM *> &msg_list);
+
+shared_ptr<vector<MQ_ITEM *>> make_msg_list(size_t msg_num, size_t msg_size);
+
+void add_msg_cache(shared_ptr<vector<MQ_ITEM *>> cache);
+
+shared_ptr<vector<MQ_ITEM *>> get_msg_cache();
+
+size_t get_cache_group_num();
 
 #endif /* AMQP_UTIL_H */

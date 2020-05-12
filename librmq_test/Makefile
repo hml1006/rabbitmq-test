@@ -41,4 +41,4 @@ clean : cleanobj
 	rm -f $(TARGET)
 cleanobj :
 	@echo "Remove binary files"
-	rm -f *.o
+	rm -f $(SRC_DIR)/*.o

@@ -3,6 +3,9 @@
 #include <arpa/inet.h>
 #include <sys/time.h>
 
+#include <mutex>
+#include <vector>
+
 #include "amqp_util.h"
 #include "event2/event.h"
 #include "global.h"
@@ -117,7 +120,7 @@ void local_comsume_cb( amqp_connection_state_t conn, void *buf, size_t len, resp
 	cout << "receive msg" << endl;
 	*rsp_type = RT_ACK ;
 
-	GlobalConfig *config = GlobalConfig::get_instance();
+	// GlobalConfig *config = GlobalConfig::get_instance();
 
 	// mo_librabbitmq不支持multi ack
 	shared_ptr<ThreadGlobal> global = get_thread_stat(pthread_self());
@@ -177,7 +180,76 @@ void connection_disc_cb(amqp_connection_state_t conn, const char *expect, const 
 	}
 }
 
-MQ_ITEM *perpare_msg()
+// 构造一条消息
+static MQ_ITEM *prepare_msg(size_t msg_size)
 {
-	return NULL;
+	GlobalConfig *config = GlobalConfig::get_instance();
+
+	// 最小消息大小为sizeof（struct timeval）, 用来存储时间戳
+	size_t true_size = msg_size;
+	if (msg_size < sizeof(struct timeval))
+	{
+		true_size = sizeof(struct timeval);
+	}
+	shared_ptr<char> content(new char[true_size], [](char *ptr) {
+		delete [] ptr;
+	});
+	size_t len = 0;
+	MQ_ITEM *msg = mqi_prepare(config->exchange.c_str(), config->routing_key.c_str(), \
+	 					content.get(), len, config->persistent?1:0, 0, NULL, NULL, 0, NULL);
+	return msg;
+}
+
+// 清除消息列表
+void drop_msg_list(vector<MQ_ITEM *> &msg_list)
+{
+	for (size_t i = 0; i < msg_list.size(); i++)
+	{
+		mqi_free(msg_list[i]);
+	}
+	msg_list.clear();
+}
+
+// 构造消息列表
+shared_ptr<vector<MQ_ITEM *>> make_msg_list(size_t msg_num, size_t msg_size)
+{
+	shared_ptr<vector<MQ_ITEM *>> msg_list(new vector<MQ_ITEM *>(msg_num));
+	for (size_t i = 0; i < msg_num; i++)
+	{
+		MQ_ITEM *item = prepare_msg(msg_size);
+		if (item != NULL)
+		{
+			msg_list->push_back(item);
+		}
+	}
+	return msg_list;
+}
+
+// 消息缓存
+static vector<shared_ptr<vector<MQ_ITEM *>>> s_msg_cache_list;
+static mutex s_msg_cache_list_lock;
+
+// 批量新增缓存消息
+void add_msg_cache(shared_ptr<vector<MQ_ITEM *>> cache)
+{
+	lock_guard<mutex> lock(s_msg_cache_list_lock);
+	s_msg_cache_list.push_back(cache);
+}
+
+// 获取一批缓存消息
+shared_ptr<vector<MQ_ITEM *>> get_msg_cache()
+{
+	lock_guard<mutex> lock(s_msg_cache_list_lock);
+	if (s_msg_cache_list.size() == 0)
+	{
+		return nullptr;
+	}
+	return *(s_msg_cache_list.erase(s_msg_cache_list.begin()));
+}
+
+// 获取有多少组缓存消息
+size_t get_cache_group_num()
+{
+	lock_guard<mutex> lock(s_msg_cache_list_lock);
+	return s_msg_cache_list.size();
 }
