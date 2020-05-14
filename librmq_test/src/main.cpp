@@ -145,7 +145,7 @@ void parse(int argc, char* argv[])
         }
         if (result.count("r"))
         {
-            config->productor_rate = result["r"].as<int>();
+            config->producer_rate = result["r"].as<int>();
         }
 
         if (result.count("vr"))
@@ -232,7 +232,7 @@ void parse(int argc, char* argv[])
         }
         if (result.count("x"))
         {
-            config->productors = result["x"].as<int>();
+            config->producers = result["x"].as<int>();
         }
         if (result.count("y"))
         {
@@ -291,21 +291,21 @@ void parse(int argc, char* argv[])
             }
             
         }
-        if (config->productors < 0 || config->consumers < 0)
+        if (config->producers < 0 || config->consumers < 0)
         {
             cout << "productor number or consumer number are wrong" << endl;
             exit(-1);
-        } else if (config->productors == 0 && config->consumers == 0)
+        } else if (config->producers == 0 && config->consumers == 0)
         {
             cout << "productor number and consumer number are zero" << endl;
             exit(-1);
-        } else if (config->productors == 0 && config->consumers > 0)
+        } else if (config->producers == 0 && config->consumers > 0)
         {
             config->role = Role::CONSUMER_ROLE;
-        } else if (config->productors > 0 && config->consumers == 0)
+        } else if (config->producers > 0 && config->consumers == 0)
         {
-            config->role = Role::PRODUCTOR_ROLE;
-        } else if (config->productors > 0 && config->consumers > 0)
+            config->role = Role::PRODUCER_ROLE;
+        } else if (config->producers > 0 && config->consumers > 0)
         {
             config->role = Role::ALL;
         }
@@ -358,39 +358,92 @@ vector<string> make_queues()
 /**
  * 构造QueueInfo
  **/
-vector<QueueInfo> make_queue_info(vector<string> &queues)
+vector<ThreadQueueInfo> make_queue_info(vector<string> &queues, size_t cpu_num)
 {
-    vector<QueueInfo> infos;
+    vector<QueueInfo> producers;
+    vector<QueueInfo> consumers;
     GlobalConfig *config = GlobalConfig::get_instance();
+    producers.reserve(config->producers);
+    consumers.reserve(config->consumers);
     if (queues.size() == 0)
     {
-        cout << "queues empty" << endl;
-        return infos;
+        cout << "[make_queue_info] queues empty" << endl;
+        exit(-1);
     }
-    if (config->productors < queues.size() || config->consumers < queues.size())
+    
+    if (cpu_num <= 0)
     {
-        cout << "consumer number and productor number must bigger than queue number" << endl;
-        return infos;
+        cout << "[make_queue_info] cpu num error: " << cpu_num << endl;
+        exit(-1);
     }
-
-    size_t consumer_per_queue = config->consumers / queues.size();
-    size_t productor_per_queue = config->productors / queues.size();
-
-    size_t rest_consumer = config->consumers % queues.size();
-    size_t rest_productor = config->productors % queues.size();
-
-    // 设置队列信息
-    for (size_t i = 0; i < queues.size(); i++)
+    
+    size_t i = 0;
+    // 创建生产者, 循环设置队列
+    while (i < config->producers)
     {
-        QueueInfo info;
-        info.queue = queues[i];
-        info.consumers = (i < rest_consumer)? (consumer_per_queue + 1) : consumer_per_queue;
-        info.productors = (i < rest_productor)? (productor_per_queue + 1) : productor_per_queue;
-
-        infos.push_back(info);
+        for (size_t j = 0; (j < queues.size() && i < config->producers); j++)
+        {
+            QueueInfo info(queues[j], Role::PRODUCER_ROLE);
+            producers.push_back(info);
+            i++;
+        }
+    }
+    i = 0;
+    // 创建消费者, 循环设置队列
+    while (i < config->consumers)
+    {
+        for (size_t j = 0; (j < queues.size() && i < config->consumers); j++)
+        {
+            QueueInfo info(queues[j], Role::CONSUMER_ROLE);
+            consumers.push_back(info);
+            i++;
+        }
+    }
+    // 初始化线程队列信息
+    vector<ThreadQueueInfo> thread_queue;
+    for (size_t i = 0; i < cpu_num; i++)
+    {
+        thread_queue.push_back(ThreadQueueInfo());
+    }
+    
+    // 循环给线程分配生产者
+    i = 0;
+    for (size_t j = 0; j < config->producers; j++)
+    {
+        if (i == cpu_num)
+        {
+            i = 0;
+        }
+        thread_queue[i].queues.push_back(producers[j]);
+        i++;
     }
 
-    return infos;
+    // 循环给线程分配消费者
+    i = 0;
+    for (size_t j = 0; j < config->consumers; j++)
+    {
+        if (i == cpu_num)
+        {
+            i = 0;
+        }
+        thread_queue[i].queues.push_back(consumers[j]);
+        i++;
+    }
+    
+    // 清除不存在生产者或者消费者的线程参数
+	auto iter = thread_queue.begin();
+	while (iter != thread_queue.end())
+	{	
+        if (iter->queues.size() == 0)
+        {
+            iter = thread_queue.erase(iter);
+        }
+		else
+        {
+            iter++;
+        }
+	}
+    return thread_queue;
 }
 
 // 创建线程并绑定cpu
@@ -433,7 +486,7 @@ int send_one_msg(MQ *mq, MQ_ITEM *item, shared_ptr<ThreadStatPerSecond> stat)
     }
 
     // 写入时间戳
-    time_t *content = (time_t *)item->content.bytes;
+    time_t *content = (time_t *)(item->content.bytes);
     struct timeval tv;
     struct timezone tz;
     gettimeofday(&tv, &tz);
@@ -458,12 +511,14 @@ void *send_msg_thread_func(void *arg)
     GlobalConfig *config = GlobalConfig::get_instance();
 
     shared_ptr<ThreadGlobal> global = get_thread_stat(thread_arg->producer_tid);
+    
+    cout << "[send_msg_thread_func] send msg for: " << thread_arg->producer_tid << endl;
 
-    shared_ptr<vector<MQ_ITEM *>> msg_list = nullptr;
     while (time(NULL) - get_start_time() <= config->run_duration)
     {
         // 默认速度
-        size_t producer_rate = config->productor_rate;
+        size_t producer_rate = config->producer_rate;
+        size_t msg_size = config->message_size;
         // 运行时长
         size_t uptime = time(NULL) - get_start_time();
         // 检查是否区间限速
@@ -479,8 +534,27 @@ void *send_msg_thread_func(void *arg)
                 }
             }
         }
+        
+        if (config->vs.size() > 0)
+        {
+            size_t size_duration = 0;
+            for (size_t i = 0; i < config->vs.size(); i++)
+            {
+                size_duration += config->vr[i].duration;
+                if (uptime <= size_duration)
+                {
+                    msg_size = config->vs[i].size;
+                }
+            }
+        }
 
         shared_ptr<ThreadStatPerSecond> stat = global->get_sec_stat(uptime);
+        if (stat == nullptr)
+        {
+            cout << "[send_msg_thread_func] uptime: " << uptime << endl; 
+            usleep(100 * 1000);
+            continue;
+        }
         // 速率检查
         if (producer_rate != 0)
         {
@@ -495,30 +569,10 @@ void *send_msg_thread_func(void *arg)
         // 每个队列发送一条消息
         for (auto it = thread_arg->mq_list->begin(); it != thread_arg->mq_list->end(); it++)
         {
-            if (msg_list == nullptr || msg_list->size() == 0)
-            {
-                msg_list = nullptr;
-                // 循环获取消息列表
-                while (msg_list == nullptr)
-                {
-                    msg_list = get_msg_cache();
-                    if (msg_list == nullptr)
-                    {
-                        usleep(30 * 1000);
-                    }
-                }
-            }
-            // 发送并删除消息
-            MQ_ITEM *item = (*msg_list)[msg_list->size() - 1];
+            MQ_ITEM *item = prepare_msg(msg_size);
             send_one_msg(*it, item, stat);
-            msg_list->pop_back();
         }
 
-    }
-    // 清空没有用完的消息
-    if (msg_list != nullptr && msg_list->size() > 0)
-    {
-        drop_msg_list(*msg_list);
     }
 
     return NULL;
@@ -528,29 +582,30 @@ void *send_msg_thread_func(void *arg)
 void *thread_func(void *arg)
 {
     shared_ptr<ThreadArg> thread_arg((ThreadArg *)arg);
-    thread_arg->print();
     GlobalConfig *config = GlobalConfig::get_instance();
     
     // 初始化线程统计
-    shared_ptr<ThreadGlobal> global(new ThreadGlobal((size_t)(config->run_duration)));
+    shared_ptr<ThreadGlobal> global(new ThreadGlobal((size_t)(config->run_duration + config->close_timeout)));
     add_thread_stat(pthread_self(), global);
 
     event_base *evbase = event_base_new();
     vector<MQ *> *mq_list = new vector<MQ *>;
-    for (auto it = thread_arg->queues.begin(); it != thread_arg->queues.end(); it++)
+    for (auto it = thread_arg->queue_info.queues.begin(); it != thread_arg->queue_info.queues.end(); it++)
     {
-        for (int productors = 0; productors < it->productors; productors++)
+        if (it->role == Role::PRODUCER_ROLE)
         {
+            cout << "[thread_func] will create producers: " << it->queue << endl;
             MQ *mq = new MQ;
             mq_list->push_back(mq);
-            int ret = create_productor(evbase, config->amqp_url, config->exchange, it->queue, config->routing_key, mq);
+            int ret = create_productor(evbase, config->amqp_url, config->exchange, config->routing_key, mq);
             if (ret != 0)
             {
                 cout << "create productor failed, queue: " << it->queue << endl;
             }
         }
-        for (int consumers = 0; consumers < it->consumers; consumers++)
+        else if (it->role == Role::CONSUMER_ROLE)
         {
+            cout << "[thread_func] will create consumers: " << it->queue << endl;
             int ret = create_consumer(evbase, config->amqp_url, config->exchange, it->queue, config->routing_key);
             if (ret != 0)
             {
@@ -570,10 +625,11 @@ void *thread_func(void *arg)
         if (ret < 0)
         {
             cout << "create send msg thread failed, exiting" << endl;
-            return NULL;
+            exit(-1);
         }
     }
 
+    cout << "[thread] " << pthread_self() << " goto event loop" << endl;
     // 进入事件循环
     amqp_evbase_loop(evbase);
 
@@ -583,6 +639,11 @@ void *thread_func(void *arg)
 static int s_current_sec = 0;
 void print_log()
 {
+    int run_duration = time(NULL) - get_start_time();
+    if (run_duration <= s_current_sec)
+    {
+        return;
+    }
     auto threads_stat = get_all_thread_stat();
     size_t sent = 0;
     size_t received = 0;
@@ -598,8 +659,8 @@ void print_log()
         shared_ptr<ThreadStatPerSecond> current_sec = per_thread->get_sec_stat(s_current_sec);
         if (current_sec == nullptr)
         {
-            cout << "current sec stat null" << endl;
-            break;
+//            cout << "[print_log] s_current_sec: " << s_current_sec << endl;
+            return;
         }
         // 合并全部线程的延迟列表
         latency_list.insert(latency_list.end(), current_sec->latency_list.begin(), current_sec->latency_list.end());
@@ -615,7 +676,6 @@ void print_log()
         sort(latency_list.begin(), latency_list.end());
         if (latency_list.size() == 0)
         {
-            cout << "latency list empty" << endl;
             return;
         }
 
@@ -631,67 +691,46 @@ void print_log()
     // id: test-134939-786, time: 11.555s, received: 41666 msg/s, min/median/75th/95th/99th consumer latency: 1637/2060/2270/2386/2407 ms
     if (config->role == Role::ALL)
     {
-        cout << "id: " << config->task_id << ", time: " << s_current_sec << ", sent: " << sent << " msg/s, received: "  \
+        cout << "id: " << config->task_id << ", time: " << s_current_sec << "s, sent: " << sent << " msg/s, received: "  \
             << received << "msg/s, min/median/75th/95th/99th consumer latency: " \
             << latency_min << "/" << latency_median << "/" << latency_75th << "/" << latency_95th << "/" << latency_99th << " ms" << endl;
 
     }
     else if (config->role == Role::CONSUMER_ROLE)
     {
-        cout << "id: " << config->task_id << ", time: " << s_current_sec << ", received: "  \
+        cout << "id: " << config->task_id << ", time: " << s_current_sec << "s, received: "  \
             << received << "msg/s, min/median/75th/95th/99th consumer latency: " \
             << latency_min << "/" << latency_median << "/" << latency_75th << "/" << latency_95th << "/" << latency_99th << " ms" << endl;
     }
     else
     {
-        cout << "id: " << config->task_id << ", time: " << s_current_sec << ", sent: " << sent << " msg/s" << endl;
+        cout << "id: " << config->task_id << ", time: " << s_current_sec << "s, sent: " << sent << " msg/s" << endl;
     }
-    
-
 }
 
 void main_loop()
 {
     GlobalConfig *config = GlobalConfig::get_instance();
-
+    
+    int total_secs = config->run_duration + config->close_timeout;
+    size_t mq_thread_num = get_mq_thread_num();
     // 循环创建缓存消息
-    while (time(NULL) - get_start_time() <= config->run_duration + 1)
+    while (true)
     {
-        size_t cache_queue_num = get_cache_group_num();
-        // 缓存的消息组数小于消息线程数两倍才需要创建缓存消息
-        if (cache_queue_num < get_mq_thread_num() * 2)
+        int run_duration = time(NULL) - get_start_time();
+        if (total_secs <= run_duration)
         {
-            // 设置默认消息大小
-            size_t msg_size = config->message_size;
-            size_t size_duration = 0;
-            size_t uptime = time(NULL) - get_start_time();
-            // 如果是动态消息大小， 根据运行时长找到对应的大小
-            if (config->vs.size() > 0)
-            {
-                for (size_t i = 0; i < config->vs.size(); i++)
-                {
-                    size_duration += config->vs[i].duration;
-                    if (uptime <= size_duration)
-                    {
-                        msg_size = config->vs[i].size;
-                        break;
-                    }
-                }
-            }
-            // 构造消息并加到缓存
-            shared_ptr<vector<MQ_ITEM *>> msg_list = make_msg_list(DEFAULT_MSG_CACHE_QUEUE_SIZE, msg_size);
-            add_msg_cache(msg_list);
+            cout << "[main_loop] total secs: " << total_secs << ", run_duration: " << run_duration << endl;
+            break;
         }
-        else
-        {
-            usleep(10 * 1000);
-        }
-        
-        int current_sec = time(NULL) - get_start_time();
-        // 晚两秒打印日志, 避免临界情况
-        if (current_sec > 0 && current_sec > (s_current_sec + 2))
+        if (mq_thread_num == get_inited_mq_thread_num())
         {
             print_log();
+        }
+        else if (mq_thread_num != get_inited_mq_thread_num())
+        {
+            cout << "thread not init ok, waiting ..." << "total: " << mq_thread_num << ", inited: " << get_inited_mq_thread_num() << endl;
+            usleep(500 * 1000);
         }
     }
 }
@@ -718,35 +757,25 @@ int main(int argc, char* argv[])
     }
 
     // 队列平分生产者和消费者数量, 如果有余数, 把余数分给前面的队列
-    vector<QueueInfo> infos = make_queue_info(queues);
+    // cpu平分生产者和消费者, 循环分配
+    vector<ThreadQueueInfo> infos = make_queue_info(queues, (size_t)cpu_num);
     if (infos.size() == 0)
     {
-        cout << "make queue info failed" << endl;
+        cout << "make thread queue info failed" << endl;
         return -1;
     }
 
     // 线程数取cpu核数和队列数的小值
-    size_t thread_num = ((size_t)cpu_num > infos.size())? infos.size() : (size_t)cpu_num;
+    size_t thread_num = infos.size();
     init_mq_thread_num(thread_num);
 
-    // 线程将会均分队列信息
-    size_t queue_info_per_thread = infos.size() / thread_num;
-    size_t rest_queue_info = infos.size() % thread_num;
-
-    // GlobalConfig *config = GlobalConfig::get_instance();
-    init_start_time();
-
+//    mq_log_console();
     cout << "will create thread: " << thread_num << endl;
     // 每个核创建一个线程
     for (size_t i = 0; i < thread_num; i++)
     {
-        // 分配线程所属队列信息
-        int begin = (i < rest_queue_info)? (i * queue_info_per_thread + i) : (i * queue_info_per_thread + rest_queue_info);
-        int len = (i < rest_queue_info) ? (queue_info_per_thread + 1) : queue_info_per_thread;
-        vector<QueueInfo> thread_queue = slice(infos, begin, begin + len - 1);
-
         // 构造线程参数
-        ThreadArg *arg = new ThreadArg(i, thread_queue);
+        ThreadArg *arg = new ThreadArg(i, infos[i]);
         pthread_t tid;
         cout << "creating thread: " << i << endl;
         int ret = create_thread(tid, i, thread_func, (void *)arg);
@@ -756,12 +785,10 @@ int main(int argc, char* argv[])
             return -1;
         }
     }
-
+    cout << "will enter main loop !!!!!!!!!!!!!!!!!" << endl;
     main_loop();
-
-    // 休眠指定时间退出
-    int close_timeout = GlobalConfig::get_instance()->close_timeout;
-    sleep(close_timeout <= 0? 5 : close_timeout);
+    
+    cout << "exiting" << endl;
 
     return 0;
 }

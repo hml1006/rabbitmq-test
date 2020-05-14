@@ -39,6 +39,7 @@ void add_thread_stat(pthread_t tid, shared_ptr<ThreadGlobal> thread_global)
 {
     // 加锁
     lock_guard<mutex> lock(s_thread_stats_mutex);
+    cout << "add thread stat, tid: " << tid << " stat: " << thread_global << endl;
     s_thread_stats.insert(pair<pthread_t, shared_ptr<ThreadGlobal>>(tid, thread_global));
 
     // 增加已经初始化的mq线程数量
@@ -48,6 +49,12 @@ void add_thread_stat(pthread_t tid, shared_ptr<ThreadGlobal> thread_global)
 // 查找线程统计数据
 shared_ptr<ThreadGlobal> get_thread_stat(pthread_t tid)
 {
+    // 加锁
+    lock_guard<mutex> lock(s_thread_stats_mutex);
+    if (s_thread_stats[tid] == nullptr)
+    {
+        cout << "[get_thread_stat] nullptr, tid: " << tid << endl;
+    }
     return s_thread_stats[tid];
 }
 
@@ -58,12 +65,11 @@ get_all_thread_stat()
     return s_thread_stats;
 }
 
-void init_start_time()
-{
-    s_start_time = time(NULL);
-}
-
 time_t get_start_time()
 {
+    if (s_start_time == 0)
+    {
+        s_start_time = time(NULL);
+    }
     return s_start_time;
 }

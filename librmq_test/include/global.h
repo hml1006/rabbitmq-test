@@ -22,7 +22,7 @@ using namespace std;
 
 enum Role {
     ALL, // 既是生产者又是消费者
-    PRODUCTOR_ROLE, // 生产者
+    PRODUCER_ROLE, // 生产者
     CONSUMER_ROLE, // 消费者
 };
 
@@ -95,10 +95,10 @@ private:
         this->persistent = false;
         this->prefetch = 1;
         this->consumer_rate = 0;
-        this->productor_rate = 0;
+        this->producer_rate = 0;
         
         this->message_size = 20;
-        this->productors = 1;
+        this->producers = 1;
         this->consumers = 1;
         this->queue_name_from = 0;
         this->queue_name_to = 0;
@@ -128,9 +128,9 @@ public:
         cout << "consumer rate:\t" << this->consumer_rate << endl;
         
         // 固定速率和可变速率二选一
-        if (this->productor_rate > 0)
+        if (this->producer_rate > 0)
         {
-            cout << "productor rate:\t" << this->productor_rate << endl;
+            cout << "productor rate:\t" << this->producer_rate << endl;
         }
         else 
         {
@@ -174,7 +174,7 @@ public:
             cout << "queue from:\t" << this->queue_name_from << endl;
             cout << "queue to:\t" << this->queue_name_to << endl;
         }
-        cout << "productor num:\t" << this->productors << endl;
+        cout << "productor num:\t" << this->producers << endl;
         cout << "consumer num:\t" << this->consumers << endl;
         cout << "amqp url:\t" << this->amqp_url << endl;
     }
@@ -192,13 +192,13 @@ public:
     bool persistent; // 消息持久化
     int prefetch;   // 有这么多条消息未被消费者ack，生产者停止发送
     int consumer_rate; // 消费者速率
-    size_t productor_rate; // 生产者速率
+    size_t producer_rate; // 生产者速率
     vector<VariableRate> vr; // 可变生产者速率
     map<string, string> messsage_properties; // 消息属性
     int message_size; // 消息大小
     vector<VariableSize> vs; // 可变消息大小
     string queue_name;
-    size_t productors;
+    size_t producers;
     size_t consumers;
     string queue_name_pattern;
     int queue_name_from;
@@ -214,7 +214,8 @@ public:
     {
         msg_sent = 0;
         msg_received = 0;
-        latency_list = vector<int>(MAX_RECEIVE_MSGS_PER_THREAD);
+        latency_list = vector<int>();
+        latency_list.reserve(MAX_RECEIVE_MSGS_PER_THREAD);
     }
 
 public:
@@ -233,7 +234,13 @@ class ThreadGlobal
 public:
     ThreadGlobal(size_t secs)
     {
-        this->every_sec_stat = vector<shared_ptr<ThreadStatPerSecond>>(secs);
+        this->every_sec_stat = vector<shared_ptr<ThreadStatPerSecond>>();
+        this->every_sec_stat.reserve(secs);
+        for (size_t i = 0; i < secs; i++)
+        {
+            shared_ptr<ThreadStatPerSecond> ptr(new ThreadStatPerSecond());
+            this->every_sec_stat.push_back(ptr);
+        }
     }
 
     shared_ptr<ThreadStatPerSecond> get_sec_stat(int secs)
@@ -242,6 +249,7 @@ public:
         {
             return this->every_sec_stat[secs];
         }
+//        cout << "[get_sec_stat] wronng secs: " << secs << endl;
         return nullptr;
     }
 private:

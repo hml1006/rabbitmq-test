@@ -12,39 +12,44 @@ using namespace std;
 struct QueueInfo
 {
     string queue;
-    int consumers;
-    int productors;
+    Role role;
 
 public:
-    QueueInfo()
+    QueueInfo(string queue, Role role)
     {
-        consumers = 0;
-        productors = 0;
+        this->queue = queue;
+        this->role = role;
     }
     void print()
     {
-        cout << "queue: " << this->queue << "  productors: " << this->productors << " consumers: " << this->consumers << endl;
+        string tag;
+        if (role == Role::CONSUMER_ROLE)
+        {
+            tag = "consumer";
+        }
+        else
+        {
+            tag = "producer";
+        }
+        cout << "queue: " << this->queue << "  role: "  << endl;
     }
+};
+
+struct ThreadQueueInfo
+{
+    vector<QueueInfo> queues;
 };
 
 struct ThreadArg
 {
     int cpu;
     // 队列信息
-    vector<QueueInfo> queues;
+    ThreadQueueInfo queue_info;
 
 public:
-    ThreadArg(int cpu, vector<QueueInfo> queues):
-        cpu(cpu), queues(queues)
+    ThreadArg(int cpu, ThreadQueueInfo queue_info):
+        cpu(cpu), queue_info(queue_info)
     {}
-
-    void print()
-    {
-        for (size_t i = 0; i < this->queues.size(); i++)
-        {
-            queues[i].print();
-        }
-    }
 };
 
 #endif /* ARG_H */

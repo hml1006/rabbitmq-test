@@ -38,7 +38,7 @@ int parse_amqp_uri(string &uri, string &user, string &passwd, string &host, uint
 	return -1;
 }
 
-int create_productor(struct event_base *evbase, string &url, string &exchange, string &queue, string &routing_key, MQ* msg_queue)
+int create_productor(struct event_base *evbase, string &url, string &exchange, string &routing_key, MQ* msg_queue)
 {
 	string user, passwd, host;
 	uint16_t port = 0;
@@ -48,21 +48,20 @@ int create_productor(struct event_base *evbase, string &url, string &exchange, s
 		cout << "parse uri failed" << endl;
 		return -1;
 	}
-
+    mq_init(msg_queue);
     int flag = add_producer(evbase, host.c_str(), port, 
 		        VHOST, user.c_str(), passwd.c_str(),
 		        exchange.c_str(),
                 routing_key.c_str(),
 	            EMPTY, //attr
 	            msg_queue,//msgQ
-		        CT_JSON, //消息类型
+		        CT_PLAIN, //消息类型
 		        0, //是否强制的(mandatory)
 		        HB_TIME,//心跳检测
 		        PRODUCER_TAG,
 		        connection_suc_cb, connection_disc_cb, publisher_confirm_cb);
 	if (flag == 0)
 	{
-		cout << "create productor success" << endl;
 		return 0;
 	}
 	else
@@ -102,7 +101,6 @@ int create_consumer(struct event_base *evbase, string &url, string &exchange, st
 				NULL);
 	if (flag == 0)
 	{
-		cout << "create consumer success" << endl;
 		return 0;
 	}
 	else
@@ -117,18 +115,23 @@ void publisher_confirm_cb(amqp_connection_state_t conn, void *rspStruct, respons
 
 void local_comsume_cb( amqp_connection_state_t conn, void *buf, size_t len, response_type *rsp_type)
 {
-	cout << "receive msg" << endl;
 	*rsp_type = RT_ACK ;
 
 	// GlobalConfig *config = GlobalConfig::get_instance();
 
 	// mo_librabbitmq不支持multi ack
 	shared_ptr<ThreadGlobal> global = get_thread_stat(pthread_self());
-	time_t current = time(NULL);
-	time_t start = get_start_time();
-	long secs = current - start;
+    if (global == nullptr)
+    {
+        pthread_exit(0);
+    }
+	long secs = time(NULL) - get_start_time();
 
 	shared_ptr<ThreadStatPerSecond> sec_stat = global->get_sec_stat(secs);
+    if (sec_stat == nullptr)
+    {
+        return;
+    }
 
 	// 消息发布时间戳
 	timeval msg_tv;
@@ -145,24 +148,27 @@ void local_comsume_cb( amqp_connection_state_t conn, void *buf, size_t len, resp
 	int latency = (cur_tv.tv_sec - msg_tv.tv_sec) * 1000 + (cur_tv.tv_usec - msg_tv.tv_usec)/1000;
 	if (sec_stat != nullptr)
 	{
+        sec_stat->msg_received++;
 		sec_stat->latency_list.push_back(latency);
 	}
 }
 
 void connection_suc_cb(amqp_connection_state_t conn, char *desc)
 {
-	cout << "connect success: " << amqp_get_queue_name(conn) << endl;
+	cout << "[****connection_suc_cb****] connect success=> " << " tag: " << amqp_get_tag(conn) << ", desc: " << desc << endl;
+//    cout.flush();
 }
 
 void connection_disc_cb(amqp_connection_state_t conn, const char *expect, const char *recv)
 {
+    cout << "[####connection_disc_cb####] connection disconnect, expect: " << expect << endl;
 	GlobalConfig *config = GlobalConfig::get_instance();
 
 	event_base *evbase = amqp_get_evbase(conn);
-	string queue = amqp_get_queue_name(conn);
 	string tag = amqp_get_tag(conn);
 	if (tag == CONSUMER_TAG)
 	{
+        string queue = amqp_get_queue_name(conn);
         int ret = create_consumer(evbase, config->amqp_url, config->exchange, queue, config->routing_key);
         if (ret != 0)
         {
@@ -172,16 +178,16 @@ void connection_disc_cb(amqp_connection_state_t conn, const char *expect, const 
 	else if (tag == PRODUCER_TAG)
 	{
 		MQ *mq = amqp_get_msg_queue(conn);
-        int ret = create_productor(evbase, config->amqp_url, config->exchange, queue, config->routing_key, mq);
+        int ret = create_productor(evbase, config->amqp_url, config->exchange, config->routing_key, mq);
         if (ret != 0)
         {
-            cout << "create productor failed, queue: " << queue << endl;
+            cout << "create productor failed, routing_key: " << config->routing_key << endl;
         }
 	}
 }
 
 // 构造一条消息
-static MQ_ITEM *prepare_msg(size_t msg_size)
+MQ_ITEM *prepare_msg(size_t msg_size)
 {
 	GlobalConfig *config = GlobalConfig::get_instance();
 
@@ -194,62 +200,8 @@ static MQ_ITEM *prepare_msg(size_t msg_size)
 	shared_ptr<char> content(new char[true_size], [](char *ptr) {
 		delete [] ptr;
 	});
-	size_t len = 0;
+
 	MQ_ITEM *msg = mqi_prepare(config->exchange.c_str(), config->routing_key.c_str(), \
-	 					content.get(), len, config->persistent?1:0, 0, NULL, NULL, 0, NULL);
+	 					content.get(), true_size, config->persistent?1:0, 0, NULL, NULL, 0, NULL);
 	return msg;
-}
-
-// 清除消息列表
-void drop_msg_list(vector<MQ_ITEM *> &msg_list)
-{
-	for (size_t i = 0; i < msg_list.size(); i++)
-	{
-		mqi_free(msg_list[i]);
-	}
-	msg_list.clear();
-}
-
-// 构造消息列表
-shared_ptr<vector<MQ_ITEM *>> make_msg_list(size_t msg_num, size_t msg_size)
-{
-	shared_ptr<vector<MQ_ITEM *>> msg_list(new vector<MQ_ITEM *>(msg_num));
-	for (size_t i = 0; i < msg_num; i++)
-	{
-		MQ_ITEM *item = prepare_msg(msg_size);
-		if (item != NULL)
-		{
-			msg_list->push_back(item);
-		}
-	}
-	return msg_list;
-}
-
-// 消息缓存
-static vector<shared_ptr<vector<MQ_ITEM *>>> s_msg_cache_list;
-static mutex s_msg_cache_list_lock;
-
-// 批量新增缓存消息
-void add_msg_cache(shared_ptr<vector<MQ_ITEM *>> cache)
-{
-	lock_guard<mutex> lock(s_msg_cache_list_lock);
-	s_msg_cache_list.push_back(cache);
-}
-
-// 获取一批缓存消息
-shared_ptr<vector<MQ_ITEM *>> get_msg_cache()
-{
-	lock_guard<mutex> lock(s_msg_cache_list_lock);
-	if (s_msg_cache_list.size() == 0)
-	{
-		return nullptr;
-	}
-	return *(s_msg_cache_list.erase(s_msg_cache_list.begin()));
-}
-
-// 获取有多少组缓存消息
-size_t get_cache_group_num()
-{
-	lock_guard<mutex> lock(s_msg_cache_list_lock);
-	return s_msg_cache_list.size();
 }
