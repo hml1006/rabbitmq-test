@@ -1,7 +1,7 @@
 # 每项任务间隔, 确保上一项测试已经结束，服务器负载恢复正常
 sleep: 0
 # rabbitmq服务器地址
-url: amqp://localhost:5671
+url: amqp://127.0.0.1:5672
 # 日志服务器地址
 log_server: http://127.0.0.1:8888
 # 任务列表

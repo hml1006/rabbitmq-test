@@ -349,6 +349,7 @@ vector<string> make_queues()
         {
             snprintf(queue_name_tmp, sizeof(queue_name_tmp), config->queue_name_pattern.c_str(), i);
             queues.push_back(string(queue_name_tmp));
+            cout << "queue: " << string(queue_name_tmp) << endl;
         }
     }
 

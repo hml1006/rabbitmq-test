@@ -1,7 +1,7 @@
 # rabbitmq管理页配置
 rabbitmq:
-  host: 172.16.176.70
-  manage_port: 6674
+  host: 127.0.0.1
+  manage_port: 15672
   username: dev
   password: dev
 

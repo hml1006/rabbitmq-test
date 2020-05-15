@@ -260,14 +260,14 @@ class Command:
         '''
         if self.role == 'productor':
             args = [self.prog, self.exchange, self.task_id, self.routing_key, self.auto_ack, self.persistent, \
-                    self.productor_rate, self.msg_properties, self.msg_size, self.queue, self.run_duration]
+                    self.productor_rate, self.msg_properties, self.msg_size, self.queue, self.run_duration, self.url]
         elif self.role == 'consumer':
             args = [self.prog, self.exchange, self.task_id, self.routing_key, self.auto_ack, self.prefetch, \
-                    self.multi_ack, self.queue, self.consumer_rate, self.run_duration]
+                    self.multi_ack, self.queue, self.consumer_rate, self.run_duration, self.url]
         elif self.role == 'all':
             args = [self.prog, self.exchange, self.task_id, self.routing_key, self.auto_ack, self.multi_ack, \
                     self.persistent, self.prefetch, self.productor_rate, self.consumer_rate, self.msg_properties, \
-                    self.msg_size, self.queue, self.run_duration]
+                    self.msg_size, self.queue, self.run_duration, self.url]
         else:
             raise ValueError('role error: %s' % self.role)
         return ''.join(args)
