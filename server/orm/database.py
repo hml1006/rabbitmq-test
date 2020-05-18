@@ -1,6 +1,6 @@
 from config.config import Config
 from sqlalchemy import create_engine, inspect
-from sqlalchemy.orm import sessionmaker
+from sqlalchemy.orm import sessionmaker, relationship
 from sqlalchemy.ext.declarative import as_declarative
 from sqlalchemy import Column,Integer,String, Text, ForeignKey, UniqueConstraint, Index
 
@@ -19,7 +19,8 @@ class Database:
     def get_instance(cls):
         if not Database.__instance:
             cfg = Config.get_instance()
-            url = 'mysql+pymysql://%s:%s@%s:%d/%s?charset=utf8mb4' % (cfg.db_user, cfg.db_password, cfg.db_host, cfg.db_port, cfg.db_name)
+            # url = 'mysql+pymysql://%s:%s@%s:%d/%s?charset=utf8mb4' % (cfg.db_user, cfg.db_password, cfg.db_host, cfg.db_port, cfg.db_name)
+            url = 'sqlite:///data.db'
             engine = create_engine(url)
             Base.metadata.create_all(engine)
             Session = sessionmaker(bind=engine)
@@ -33,18 +34,6 @@ class Node(Base):
     __tablename__ = 'node'
     id = Column(Integer, primary_key=True, autoincrement=True)
     name = Column(String(128), unique=True, comment='节点名称')
-
-class Task(Base):
-    '''
-    测试任务表
-    '''
-    __tablename__ = 'test_task'
-    id = Column(Integer, primary_key=True, autoincrement=True)
-    name = Column(String(64), nullable=False, unique=True)
-    key = Column(Integer, nullable=False, comment='任务key')
-    type = Column(String(32), nullable=False, comment='任务类型,标记官方测试工具还是mo_librabbitmq测试工具')
-    start_time = Column(Integer, nullable=False, comment='任务开始时间')
-    params = Column(Text, comment='任务参数, json Base64编码')
 
 class TaskSeq(Base):
     '''
@@ -66,9 +55,26 @@ class TaskSeq(Base):
     __table_args__ = (
         # 设置联合唯一
         UniqueConstraint('task_id', 'stat_time', name='uix_task_seq'),
-
         # 建立索引
         Index('uix_item', 'task_id', 'stat_time')
+    )
+
+class Task(Base):
+    '''
+    测试任务表
+    '''
+    __tablename__ = 'test_task'
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    name = Column(String(64), nullable=False, unique=True)
+    key = Column(Integer, nullable=False, comment='任务key')
+    type = Column(String(32), nullable=False, comment='任务类型,标记官方测试工具还是mo_librabbitmq测试工具')
+    start_time = Column(Integer, nullable=False, comment='任务开始时间')
+    params = Column(Text, comment='任务参数, json Base64编码')
+    seqs = relationship(
+        "TaskSeq",
+        order_by=TaskSeq.id,
+        backref="test_task",
+        cascade="all,delete"
     )
 
 class RmqCrash(Base):

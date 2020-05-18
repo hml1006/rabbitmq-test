@@ -44,6 +44,7 @@ void add_thread_stat(pthread_t tid, shared_ptr<ThreadGlobal> thread_global)
 
     // 增加已经初始化的mq线程数量
     s_mq_thread_init_num++;
+    cout << "[add_thread_stat] thread inited: " << s_mq_thread_init_num << endl;
 }
 
 // 查找线程统计数据
@@ -51,9 +52,11 @@ shared_ptr<ThreadGlobal> get_thread_stat(pthread_t tid)
 {
     // 加锁
     lock_guard<mutex> lock(s_thread_stats_mutex);
-    if (s_thread_stats[tid] == nullptr)
+    auto it = s_thread_stats.find(tid);
+    if (it == s_thread_stats.end())
     {
         cout << "[get_thread_stat] nullptr, tid: " << tid << endl;
+        return nullptr;
     }
     return s_thread_stats[tid];
 }

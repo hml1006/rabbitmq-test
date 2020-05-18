@@ -42,13 +42,12 @@ struct ThreadQueueInfo
 
 struct ThreadArg
 {
-    int cpu;
     // 队列信息
     ThreadQueueInfo queue_info;
 
 public:
-    ThreadArg(int cpu, ThreadQueueInfo queue_info):
-        cpu(cpu), queue_info(queue_info)
+    ThreadArg(ThreadQueueInfo queue_info):
+        queue_info(queue_info)
     {}
 };
 

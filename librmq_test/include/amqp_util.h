@@ -16,6 +16,7 @@ using namespace std;
 #define CONSUMER_TAG      (char *)("consumer.tag")
 #define PRODUCER_TAG              (char *)("producer.tag")
 #define HB_TIME             30
+#define MAX_DISC_TIMES      10 // 最大断链次数
 
 int parse_amqp_uri(string &uri, string &user, string &passwd, string &host, uint16_t &port);
 
@@ -23,7 +24,7 @@ int create_productor(struct event_base *evbase, string &url, string &exchange, s
 
 int create_consumer(struct event_base *evbase, string &url, string &exchange, string &queue, string &routing_key);
 
-void publisher_confirm_cb(amqp_connection_state_t conn, void *rspStruct, response_type rspType);
+//void publisher_confirm_cb(amqp_connection_state_t conn, void *rspStruct, response_type rspType);
 
 void local_comsume_cb( amqp_connection_state_t conn, void *buf, size_t len, response_type *rsp_type );
 

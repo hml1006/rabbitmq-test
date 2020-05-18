@@ -166,28 +166,6 @@ class Command:
                     self._productor_rate = self._productor_rate + item_rate
 
     @property
-    def msg_properties(self):
-        return self._msg_properties
-
-    @msg_properties.setter
-    @typecheck(dict)
-    def msg_properties(self, msg_properties):
-        if len(msg_properties) == 0:
-            self._msg_properties = ''
-        else:
-            if self.type == 'standard':
-                properties = [' -mp ']
-            else:
-                properties = [' --mp ']
-            for (k, v) in msg_properties:
-                field = '%s=%s' % (k, v)
-                properties.append(field)
-                properties.append(',')
-            if properties[len(properties) - 1] == ',':
-                properties.pop()
-            self._msg_properties = ''.join(properties)
-
-    @property
     def msg_size(self):
         return self._msg_size
 
@@ -241,7 +219,7 @@ class Command:
 
     @url.setter
     @typecheck(str)
-    def set_url(self, url):
+    def url(self, url):
         self._url = ' -h %s' % url
 
     @property
@@ -260,13 +238,13 @@ class Command:
         '''
         if self.role == 'productor':
             args = [self.prog, self.exchange, self.task_id, self.routing_key, self.auto_ack, self.persistent, \
-                    self.productor_rate, self.msg_properties, self.msg_size, self.queue, self.run_duration, self.url]
+                    self.productor_rate, self.msg_size, self.queue, self.run_duration, self.url]
         elif self.role == 'consumer':
             args = [self.prog, self.exchange, self.task_id, self.routing_key, self.auto_ack, self.prefetch, \
                     self.multi_ack, self.queue, self.consumer_rate, self.run_duration, self.url]
         elif self.role == 'all':
             args = [self.prog, self.exchange, self.task_id, self.routing_key, self.auto_ack, self.multi_ack, \
-                    self.persistent, self.prefetch, self.productor_rate, self.consumer_rate, self.msg_properties, \
+                    self.persistent, self.prefetch, self.productor_rate, self.consumer_rate, \
                     self.msg_size, self.queue, self.run_duration, self.url]
         else:
             raise ValueError('role error: %s' % self.role)
@@ -288,10 +266,10 @@ class Command:
         command.prefetch = task.prefetch
         command.productor_rate = task.productor_rate
         command.consumer_rate = task.consumer_rate
-        command.msg_properties = task.msg_properties
         command.msg_size = task.msg_size
         command.queue = task.queue
         command.sleep_time = task.sleep_time
+        command.url = task.url
         command.task = task
         return command
 

@@ -291,11 +291,7 @@ void parse(int argc, char* argv[])
             }
             
         }
-        if (config->producers < 0 || config->consumers < 0)
-        {
-            cout << "productor number or consumer number are wrong" << endl;
-            exit(-1);
-        } else if (config->producers == 0 && config->consumers == 0)
+        if (config->producers == 0 && config->consumers == 0)
         {
             cout << "productor number and consumer number are zero" << endl;
             exit(-1);
@@ -448,7 +444,7 @@ vector<ThreadQueueInfo> make_queue_info(vector<string> &queues, size_t cpu_num)
 }
 
 // 创建线程并绑定cpu
-int create_thread(pthread_t &tid, int cpu, void *(*start_routine) (void *), void *arg)
+int create_thread(pthread_t &tid, void *(*start_routine) (void *), void *arg)
 {
     // 初始化线程属性
     pthread_attr_t att;
@@ -541,7 +537,7 @@ void *send_msg_thread_func(void *arg)
             size_t size_duration = 0;
             for (size_t i = 0; i < config->vs.size(); i++)
             {
-                size_duration += config->vr[i].duration;
+                size_duration += config->vs[i].duration;
                 if (uptime <= size_duration)
                 {
                     msg_size = config->vs[i].size;
@@ -585,17 +581,21 @@ void *thread_func(void *arg)
     shared_ptr<ThreadArg> thread_arg((ThreadArg *)arg);
     GlobalConfig *config = GlobalConfig::get_instance();
     
+    cout << "[thread_func] create mq thread: " << pthread_self() << endl;
+    
     // 初始化线程统计
     shared_ptr<ThreadGlobal> global(new ThreadGlobal((size_t)(config->run_duration + config->close_timeout)));
     add_thread_stat(pthread_self(), global);
 
     event_base *evbase = event_base_new();
+    shared_ptr<event_base> base(evbase, [](event_base *base) {
+        amqp_destroy_evbase(base);
+    });
     vector<MQ *> *mq_list = new vector<MQ *>;
     for (auto it = thread_arg->queue_info.queues.begin(); it != thread_arg->queue_info.queues.end(); it++)
     {
         if (it->role == Role::PRODUCER_ROLE)
         {
-            cout << "[thread_func] will create producers: " << it->queue << endl;
             MQ *mq = new MQ;
             mq_list->push_back(mq);
             int ret = create_productor(evbase, config->amqp_url, config->exchange, config->routing_key, mq);
@@ -622,7 +622,7 @@ void *thread_func(void *arg)
         SendMsgThreadArg *send_msg_thread_arg = new SendMsgThreadArg;
         send_msg_thread_arg->producer_tid = pthread_self();
         send_msg_thread_arg->mq_list = shared_ptr<vector<MQ *>>(mq_list);
-        int ret = create_thread(send_msg_thread, thread_arg->cpu, send_msg_thread_func, (void *) send_msg_thread_arg);
+        int ret = create_thread(send_msg_thread, send_msg_thread_func, (void *) send_msg_thread_arg);
         if (ret < 0)
         {
             cout << "create send msg thread failed, exiting" << endl;
@@ -630,7 +630,6 @@ void *thread_func(void *arg)
         }
     }
 
-    cout << "[thread] " << pthread_self() << " goto event loop" << endl;
     // 进入事件循环
     amqp_evbase_loop(evbase);
 
@@ -660,7 +659,7 @@ void print_log()
         shared_ptr<ThreadStatPerSecond> current_sec = per_thread->get_sec_stat(s_current_sec);
         if (current_sec == nullptr)
         {
-//            cout << "[print_log] s_current_sec: " << s_current_sec << endl;
+            cout << "[print_log] current_sec nullptr: " << s_current_sec << endl;
             return;
         }
         // 合并全部线程的延迟列表
@@ -727,6 +726,7 @@ void main_loop()
         if (mq_thread_num == get_inited_mq_thread_num())
         {
             print_log();
+            usleep(500 * 1000);
         }
         else if (mq_thread_num != get_inited_mq_thread_num())
         {
@@ -770,25 +770,41 @@ int main(int argc, char* argv[])
     size_t thread_num = infos.size();
     init_mq_thread_num(thread_num);
 
+    // mq_init会初始化kdvlog, kdvlog初始化函数不能多线程调用
+    MQ *mq = new MQ;
+    mq_init(mq);
+    mq_deinit(mq);
+    
 //    mq_log_console();
     cout << "will create thread: " << thread_num << endl;
+    
+    // mq线程列表
+    vector<pthread_t> mq_threads;
     // 每个核创建一个线程
     for (size_t i = 0; i < thread_num; i++)
     {
         // 构造线程参数
-        ThreadArg *arg = new ThreadArg(i, infos[i]);
+        ThreadArg *arg = new ThreadArg(infos[i]);
         pthread_t tid;
         cout << "creating thread: " << i << endl;
-        int ret = create_thread(tid, i, thread_func, (void *)arg);
+        int ret = create_thread(tid, thread_func, (void *)arg);
         if (ret < 0)
         {
             cout << "create thread failed, exiting" << endl;
             return -1;
         }
+        mq_threads.push_back(tid);
     }
     cout << "will enter main loop !!!!!!!!!!!!!!!!!" << endl;
     main_loop();
     
+    // 退出mq线程
+    for (auto it = mq_threads.begin(); it != mq_threads.end(); it++)
+    {
+        pthread_cancel(*it);
+    }
+    
+    usleep(100 * 1000);
     cout << "exiting" << endl;
 
     return 0;

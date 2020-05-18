@@ -59,7 +59,7 @@ int create_productor(struct event_base *evbase, string &url, string &exchange, s
 		        0, //是否强制的(mandatory)
 		        HB_TIME,//心跳检测
 		        PRODUCER_TAG,
-		        connection_suc_cb, connection_disc_cb, publisher_confirm_cb);
+		        connection_suc_cb, connection_disc_cb, NULL);
 	if (flag == 0)
 	{
 		return 0;
@@ -110,10 +110,10 @@ int create_consumer(struct event_base *evbase, string &url, string &exchange, st
 	return -1;
 }
 
-void publisher_confirm_cb(amqp_connection_state_t conn, void *rspStruct, response_type rspType)
-{}
+//void publisher_confirm_cb(amqp_connection_state_t conn, void *rspStruct, response_type rspType)
+//{}
 
-void local_comsume_cb( amqp_connection_state_t conn, void *buf, size_t len, response_type *rsp_type)
+void local_comsume_cb( __attribute__((unused))amqp_connection_state_t conn, void *buf, __attribute__((unused))size_t len, response_type *rsp_type)
 {
 	*rsp_type = RT_ACK ;
 
@@ -159,9 +159,22 @@ void connection_suc_cb(amqp_connection_state_t conn, char *desc)
 //    cout.flush();
 }
 
+// 断链次数
+static int s_disc_times = 0;
+static mutex s_disc_times_mutex;
+
 void connection_disc_cb(amqp_connection_state_t conn, const char *expect, const char *recv)
 {
-    cout << "[####connection_disc_cb####] connection disconnect, expect: " << expect << endl;
+    cout << "[####connection_disc_cb####] connection disconnect, expect: " << expect << ", recv: " << recv << endl;
+    
+    lock_guard<mutex> lock(s_disc_times_mutex);
+    s_disc_times++;
+    if (s_disc_times >= MAX_DISC_TIMES)
+    {
+        cout << "[connection_disc_cb] got max disconnection times, thread exit: " << pthread_self() << endl;
+        exit(-1);
+    }
+    
 	GlobalConfig *config = GlobalConfig::get_instance();
 
 	event_base *evbase = amqp_get_evbase(conn);

@@ -30,7 +30,7 @@ enum Role {
 class MqInfo 
 {
 public:
-    MqInfo(Role role, string queue, amqp_connection_state_t connection)
+    MqInfo(string queue, amqp_connection_state_t connection)
     {
         this->connection = connection;
         this->queue = queue;

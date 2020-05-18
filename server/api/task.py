@@ -79,6 +79,7 @@ class TaskService(pyrestful.rest.RestHandler):
         '''
         result = dict()
         try:
+            self.database.query(TaskSeq).filter(TaskSeq.task_id == task_id).delete()
             self.database.query(OrmTask).filter(OrmTask.id == task_id).delete()
             self.database.commit()
             result['errno'] = 0

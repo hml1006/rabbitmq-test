@@ -76,6 +76,9 @@
 			/* margin-left: 30px; */
 			cursor: pointer;
 			background-color: #EEEEEE;
+			width: 300px;
+			padding-top: 10px;
+			padding-left: 10px;
 		}
 
 		.list-item-select {
@@ -84,6 +87,15 @@
 
 		.list-item:hover {
 			background-color: deepskyblue;
+		}
+
+		.delete {
+			background-color: red;
+			text-align: center;
+			width: 80px;
+    		color: white;
+			padding-top: 15px;
+			margin: 5px;
 		}
 
 		.charts {
@@ -377,6 +389,18 @@
 			})
 		}
 
+		// 删除任务结果
+		function deleteTask(id) {
+			$.ajax({
+    			url: '/tasks/' + id,
+    			type: 'DELETE',
+    			success: function(result) {
+        			location.reload();
+    			}
+			});
+
+		}
+
 		// unix时间转换
 		function formatTime(time) {
 			let unixtime = time
@@ -417,7 +441,9 @@
 					if (tasks != null) {
 						// 界面上添加任务列表
 						for (var i = 0; i < tasks.length; i++) {
-							$('#tasks').append('<div class="item list-item"' + 'id="task-' + tasks[i].id + '"' + ' onclick="selectTask(this.id)">' + tasks[i].name + '</div>')
+							$('#tasks').append('<div style="display: flex;"><div class="item list-item"' + 'id="task-' + tasks[i].id + '"' + ' onclick="selectTask(this.id)">' + 
+							tasks[i].name + '</div>'+ 
+							'<div class="delete" onclick="deleteTask('+tasks[i].id+')">'+'删除'+'</div></div>')
 						}
 						// 默认选中第一个任务
 						if (tasks.length > 0) {
@@ -546,7 +572,40 @@
 				return {
 					name: title,
 					type: 'line',
-					data: item
+					data: item,
+					markLine: {
+						symbol: 'none',
+						itemStyle: {
+							normal: {
+								lineStyle: {
+									type: 'solid',
+									color: '#000'
+								},
+								label: {
+									show: true,
+									position: 'left'
+								}
+	
+							}
+						},
+						data: [{
+								name: '平均线',
+								// 支持 'average', 'min', 'max'
+								type: 'average'
+							},
+							{
+								name: '峰线',
+								// 支持 'average', 'min', 'max'
+								type: 'max'
+							},
+							{
+								name: '谷线',
+								// 支持 'average', 'min', 'max'
+								type: 'min'
+							}
+	
+						]
+					}
 				}
 			}
 		}

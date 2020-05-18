@@ -336,15 +336,6 @@ class Task:
         self._consumer_rate = consumer_rate
 
     @property
-    def msg_properties(self):
-        return self._msg_properties
-
-    @msg_properties.setter
-    @typecheck(dict)
-    def msg_properties(self, msg_properties):
-        self._msg_properties = msg_properties
-
-    @property
     def role(self):
         return self._role
 
@@ -477,14 +468,6 @@ class Task:
                     task.msg_size = size_list
             else:
                 raise ValueError('please check msg-size field')
-        # 消息属性
-        if 'msg-prroperties' in yaml_task:
-            properties = yaml_task['msg-properties']
-            if len(properties) > 0:
-                msg_properties = dict()
-                for (k, v) in properties:
-                    msg_properties[k] = v
-                task.msg_properties = msg_properties
         # 获取队列信息
         if 'queue' in yaml_task:
             queue = yaml_task['queue']

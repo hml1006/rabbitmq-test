@@ -11,9 +11,9 @@ task-list:
     # 测试时长 秒
     time: 100
     # 生产者和消费者在不同机器上时，此参数生效
-    routing-key: keda.test.k
+    routing-key: rmq.test.k
     # exchange
-    exchange: test.rmq.ex
+    exchange: rmq.test.ex
     # 消费者自动确认
     auto-ack: true
     # 一次确认多个消息
@@ -21,11 +21,11 @@ task-list:
     # 持久化消息和队列
     persistent: false
     # 消息预取
-    prefetch: 0
+    prefetch: 10000
     # 消费者速率 msg/s, 每个消费者都是这个速率
     consumer-rate: 0
     # 发送速率 msg/s，每个消费者都是这个速率
-    productor-rate: 0
+    productor-rate: 1000
     # 消息大小
     msg-size:
       -
@@ -39,14 +39,10 @@ task-list:
       -
         duration: 15
         size: 3000
-    # 消息属性，key-value形式
-    msg-properties:
-      # 例子：优先级属性
-      priority：10
     # 单个队列
     queue:
       # 队列名
-      name: keda.test.q
+      name: rmq.test.q
       # 生产者数量
       producter: 2
       # 消费者数量
@@ -54,8 +50,8 @@ task-list:
   -
     name: 测试12
     time: 150
-    exchange: keda.exchg.test2
-    routing-key: keda.test.k2
+    exchange: rmq.test.ex
+    routing-key: rmq.test.k
     # 消费者自动确认
     auto-ack: true
     # 一次确认多个消息
@@ -63,7 +59,7 @@ task-list:
     # 持久化消息和队列
     persistent: false
     # 消息预取
-    prefetch: 1
+    prefetch: 10000
     # 消费者速率 msg/s, 每个消费者都是这个速率
     consumer-rate: 0
     # 发送速率 msg/s，每个消费者都是这个速率
@@ -76,11 +72,11 @@ task-list:
     # 多队列
     queue:
       # 队列生成规则，将从 perf-test-1 到perf-test-10
-      pattern: perf-test-%d
+      pattern: rmq.test.q.%d
       from: 1
       to: 10
       # 生产者和消费者会均衡到所有队列
       # 总的生产者数量
-      producter: 100
+      producter: 3
       # 总的消费者数量
-      consumer: 100
+      consumer: 5
