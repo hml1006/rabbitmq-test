@@ -171,26 +171,7 @@ void parse(int argc, char* argv[])
         // 消息属性
         if (result.count("mp"))
         {
-            string mp_str = result["mp"].as<string>();
-            vector<string> mp = str_split(mp_str, ",");
-            if (mp.size() == 0)
-            {
-                cout << "mp argument error" << endl;
-                exit(-1);
-            }
-            map<string, string> properties;
-            for (auto it = mp.begin(); it != mp.end(); ++it)
-            {
-                vector<string> item = str_split(*it, "=");
-                if (item.size() == 2)
-                {
-                    properties.insert(make_pair(item[0], item[1]));
-                }
-            }
-            if (properties.size() > 0)
-            {
-                config->messsage_properties = properties;
-            }
+            cout << "message properties not support" << endl;
         }
 
         // 消息大小

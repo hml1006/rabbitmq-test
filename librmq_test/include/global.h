@@ -141,16 +141,6 @@ public:
                 cout << "\trate:\t" << it->rate << endl;
             }
         }
-        // 消息属性
-        if (this->messsage_properties.size() > 0)
-        {
-            cout << "messge properties:\t" << endl;
-            for (auto it = this->messsage_properties.begin(); it != this->messsage_properties.end(); it++)
-            {
-                cout << "\t" << it->first << endl;
-                cout << "\t" << it->second << endl;
-            }
-        }
         if (this->vs.size() > 0)
         {
             cout << "variable size:\t" << endl;
@@ -194,7 +184,6 @@ public:
     int consumer_rate; // 消费者速率
     size_t producer_rate; // 生产者速率
     vector<VariableRate> vr; // 可变生产者速率
-    map<string, string> messsage_properties; // 消息属性
     int message_size; // 消息大小
     vector<VariableSize> vs; // 可变消息大小
     string queue_name;
