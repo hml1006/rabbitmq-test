@@ -32,17 +32,6 @@ struct SendMsgThreadArg
     shared_ptr<vector<MQ *>> mq_list;
 };
 
-// 拆分字符串
-vector<string> str_split(const string& in, const string& delim) {
-    regex re{ delim };
-    // 调用 vector::vector (InputIterator first, InputIterator last,const allocator_type& alloc = allocator_type())
-    // 构造函数,完成字符串分割
-    return vector<string> {
-        sregex_token_iterator(in.begin(), in.end(), re, -1),
-        sregex_token_iterator()
-    };
-}
-
 // 解析命令行
 void parse(int argc, char* argv[])
 {
