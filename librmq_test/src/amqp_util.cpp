@@ -1,5 +1,4 @@
 #include <string>
-#include <regex>
 #include <arpa/inet.h>
 #include <sys/time.h>
 
@@ -14,28 +13,28 @@ using namespace std;
 
 int parse_amqp_uri(string &uri, string &user, string &passwd, string &host, uint16_t &port)
 {
-	regex regex_without_accout("^amqp://(\\d{1,3}\\.\\d{1,3}\\.\\d{1,3}\\.\\d{1,3}):(\\d+)/*$");
-	regex regex_with_accout("^amqp://([a-zA-Z\\d_]+):([\\d\\S]+)@(\\d{1,3}\\.\\d{1,3}\\.\\d{1,3}\\.\\d{1,3}):(\\d+)/*$");
-	smatch match_result;
+    char *buf = new char[512];
+    shared_ptr<char> url(buf, std::default_delete<char[]>());
+    snprintf(buf, 512, "%s", uri.c_str());
+    
+    struct amqp_connection_info parsed;
+    memset(&parsed, 0, sizeof(struct amqp_connection_info));
+    int status = amqp_parse_url(buf, &parsed);
+    if (status != AMQP_STATUS_OK)
+    {
+        cout << "bad amqp url => " << uri << endl;
+        return -1;
+    }
+    if (parsed.user != NULL && parsed.password != NULL)
+    {
+        user = parsed.user;
+        passwd = parsed.password; 
+    }
 
-	if (regex_match(uri, match_result, regex_without_accout))
-	{
-		user = DEFAULT_USER;
-		passwd = DEFAULT_PASS;
-		host = match_result[1];
-		port = (uint16_t)stoul(match_result[2]);
-		return 0;
-	}
-	else if (regex_match(uri, match_result, regex_with_accout))
-	{
-		user = match_result[1];
-		passwd = match_result[2];
-		host = match_result[3];
-		port = (uint16_t)stoul(match_result[4]);
-		return 0;
-	}
-
-	return -1;
+    host = parsed.host;
+    port = parsed.port;
+    
+	return 0;
 }
 
 int create_productor(struct event_base *evbase, string &url, string &exchange, string &routing_key, MQ* msg_queue)
