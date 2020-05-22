@@ -487,6 +487,10 @@ class Task:
                     queue_obj.name = queue['name']
                 else:
                     raise ValueError('name field not found in queue')
+            if 'productor' in queue:
+                queue_obj.productor_num = queue['productor']
+            if 'consumer' in queue:
+                queue_obj.consumer_num = queue['consumer']
             task.queue = queue_obj
         # 设置url
         if not url or len(url) == 0 or not isinstance(url, str):

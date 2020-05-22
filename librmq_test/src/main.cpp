@@ -134,7 +134,8 @@ void parse(int argc, char* argv[])
         }
         if (result.count("r"))
         {
-            config->producer_rate = result["r"].as<int>();
+            config->producer_rate = (size_t)result["r"].as<int>();
+            cout << "****producer rate: " << config->producer_rate << endl;
         }
 
         if (result.count("vr"))
@@ -276,7 +277,7 @@ void parse(int argc, char* argv[])
             config->role = Role::ALL;
         }
 
-        // config->print();
+         config->print();
     }
     catch (const cxxopts::OptionException& e)
     {
@@ -606,7 +607,7 @@ void *thread_func(void *arg)
     return NULL;
 }
 
-static int s_current_sec = 0;
+static int s_current_sec = -1;
 void print_log()
 {
     int run_duration = time(NULL) - get_start_time();
@@ -614,6 +615,8 @@ void print_log()
     {
         return;
     }
+    
+    s_current_sec++;
     auto threads_stat = get_all_thread_stat();
     size_t sent = 0;
     size_t received = 0;
@@ -644,18 +647,16 @@ void print_log()
     {
         // 按照从小到达排序延迟时间
         sort(latency_list.begin(), latency_list.end());
-        if (latency_list.size() == 0)
+        if (latency_list.size() != 0)
         {
-            return;
+            latency_min = latency_list[0];
+            latency_median = latency_list[latency_list.size() * 0.5];
+            latency_75th = latency_list[latency_list.size() * 0.75];
+            latency_95th = latency_list[latency_list.size() * 0.95];
+            latency_99th = latency_list[latency_list.size() * 0.99];
         }
-
-        latency_min = latency_list[0];
-        latency_median = latency_list[latency_list.size() * 0.5];
-        latency_75th = latency_list[latency_list.size() * 0.75];
-        latency_95th = latency_list[latency_list.size() * 0.95];
-        latency_99th = latency_list[latency_list.size() * 0.99];
     }
-    s_current_sec++;
+
     // id: queuetest2, time: 2.000s, sent: 1001 msg/s, received: 501 msg/s, min/median/75th/95th/99th consumer latency: 447660/696961/821878/921988/941319 µs
     // id: test-134948-252, time: 1.477s, sent: 131940 msg/s
     // id: test-134939-786, time: 11.555s, received: 41666 msg/s, min/median/75th/95th/99th consumer latency: 1637/2060/2270/2386/2407 ms

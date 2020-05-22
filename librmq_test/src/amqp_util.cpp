@@ -115,7 +115,7 @@ int create_consumer(struct event_base *evbase, string &url, string &exchange, st
 void local_comsume_cb( __attribute__((unused))amqp_connection_state_t conn, void *buf, __attribute__((unused))size_t len, response_type *rsp_type)
 {
 	*rsp_type = RT_ACK ;
-
+    
 	// GlobalConfig *config = GlobalConfig::get_instance();
 
 	// mo_librabbitmq不支持multi ack
@@ -145,11 +145,8 @@ void local_comsume_cb( __attribute__((unused))amqp_connection_state_t conn, void
 
 	// 计算延迟并把延迟添加到对应时间点
 	int latency = (cur_tv.tv_sec - msg_tv.tv_sec) * 1000 + (cur_tv.tv_usec - msg_tv.tv_usec)/1000;
-	if (sec_stat != nullptr)
-	{
-        sec_stat->msg_received++;
-		sec_stat->latency_list.push_back(latency);
-	}
+    sec_stat->msg_received++;
+	sec_stat->latency_list.push_back(latency);
 }
 
 void connection_suc_cb(amqp_connection_state_t conn, char *desc)
@@ -158,21 +155,12 @@ void connection_suc_cb(amqp_connection_state_t conn, char *desc)
 //    cout.flush();
 }
 
-// 断链次数
-static int s_disc_times = 0;
-static mutex s_disc_times_mutex;
-
 void connection_disc_cb(amqp_connection_state_t conn, const char *expect, const char *recv)
 {
     cout << "[####connection_disc_cb####] connection disconnect, expect: " << expect << ", recv: " << recv << endl;
     
-    lock_guard<mutex> lock(s_disc_times_mutex);
-    s_disc_times++;
-    if (s_disc_times >= MAX_DISC_TIMES)
-    {
-        cout << "[connection_disc_cb] got max disconnection times, thread exit: " << pthread_self() << endl;
-        exit(-1);
-    }
+    sleep(1);
+    
     
 	GlobalConfig *config = GlobalConfig::get_instance();
 
