@@ -30,6 +30,11 @@ int parse_amqp_uri(string &uri, string &user, string &passwd, string &host, uint
         user = parsed.user;
         passwd = parsed.password; 
     }
+    else
+    {
+        user = DEFAULT_USER;
+        passwd = DEFAULT_PASS;
+    }
 
     host = parsed.host;
     port = parsed.port;
