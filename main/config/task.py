@@ -116,8 +116,8 @@ class DynamicQueue:
     @productor_num.setter
     @typecheck(int)
     def productor_num(self, productor_num):
-        if productor_num <= 0:
-            raise ValueError('productor num must bigger than 0')
+        if productor_num < 0:
+            raise ValueError('productor num must not be smaller than 0')
         self._productor_num = productor_num
 
     @property
@@ -127,8 +127,8 @@ class DynamicQueue:
     @consumer_num.setter
     @typecheck(int)
     def consumer_num(self, consumer_num):
-        if consumer_num <= 0:
-            raise ValueError('consumer num must bigger than 0')
+        if consumer_num < 0:
+            raise ValueError('consumer num must not be smaller than 0')
         self._consumer_num = consumer_num
 
 class FixedQueue:
@@ -161,8 +161,8 @@ class FixedQueue:
     @productor_num.setter
     @typecheck(int)
     def productor_num(self, productor_num):
-        if productor_num <= 0:
-            raise ValueError('productor num must bigger than 0')
+        if productor_num < 0:
+            raise ValueError('productor num must not be smaller than 0')
         self._productor_num = productor_num
 
     @property
@@ -172,8 +172,8 @@ class FixedQueue:
     @consumer_num.setter
     @typecheck(int)
     def consumer_num(self, consumer_num):
-        if consumer_num <= 0:
-            raise ValueError('consumer num must bigger than 0')
+        if consumer_num < 0:
+            raise ValueError('consumer num must not be smaller than 0')
         self._consumer_num = consumer_num
 
 class Task:
