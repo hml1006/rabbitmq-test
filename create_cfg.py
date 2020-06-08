@@ -75,7 +75,7 @@ if __name__ == '__main__':
     task = {
         'name': name,
         'time': args.time,
-        'routing_key': args.routing_key,
+        'routing-key': args.routing_key,
         'exchange': args.exchange,
         'auto_ack': True,
         'multi_ack': 0,
