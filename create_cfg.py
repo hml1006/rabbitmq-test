@@ -14,11 +14,13 @@ if __name__ == '__main__':
     parser.add_argument('-y', '--consumer', type=int, dest='consumer', help='Consumer number', default=10)
     parser.add_argument('-r', '--rate', type=int, dest='rate', help='Producer send rate', default=0)
     parser.add_argument('-s', '--size', type=int, dest='size', help='Message size', default=2000)
+    parser.add_argument('-q', type=int, dest='prefetch', help='Consumer prefetch', default=0)
     parser.add_argument('-qp', type=str, dest='qp', help='Queue pattern, for example: perf-test-q-%%d')
     parser.add_argument('-qpf', type=int, dest='qpf', help='Queue pattern from')
     parser.add_argument('-qpt', type=int, dest='qpt', help='Queue pattern to')
     parser.add_argument('-vs', type=str, dest='vs', help='Dynamically message size, for example=> 1000:5,2000:10,3000:20')
     parser.add_argument('-vr', type=str, dest='vr', help='Dynamically message send rate, for example=> 1000:5,2000:10,3000:20')
+    parser.add_argument('--name', type=str, dest='name', help='Yaml file name')
     args = parser.parse_args()
 
     yaml_data = {
@@ -71,7 +73,10 @@ if __name__ == '__main__':
             'producer': args.producer,
             'consumer': args.consumer
         }
-    name = 'task-p%dc%d' % (args.producer, args.consumer)
+    if not args.name:
+        name = 'task-p%dc%d' % (args.producer, args.consumer)
+    else:
+        name = args.name
     task = {
         'name': name,
         'time': args.time,
@@ -80,7 +85,7 @@ if __name__ == '__main__':
         'auto_ack': True,
         'multi_ack': 0,
         'persistent': False,
-        'prefetch': 0,
+        'prefetch': args.prefetch,
         'consumer_rate': 0,
         'msg-properties': {
             'priority': 1
@@ -94,7 +99,7 @@ if __name__ == '__main__':
 
     text = yaml.dump(yaml_data, default_flow_style=False)
     print(text)
-    filenane = name + '.yaml'
+    filenane = 'etc/' + name + '.yaml'
     f = open(file=filenane, mode='w')
     if f:
         print('Writing to %s ...' % filenane)
