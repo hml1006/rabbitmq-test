@@ -2,7 +2,7 @@ import re
 from utils.typecheck import typecheck
 
 # role 列表
-TASK_ROLES = ['productor', 'consumer', 'all']
+TASK_ROLES = ['producer', 'consumer', 'all']
 
 class DynamicMsgSize:
     '''
@@ -77,7 +77,7 @@ class DynamicQueue:
         # 队列结束值
         self._queue_to = 0
         # 生产者数量
-        self._productor_num = 1
+        self._producer_num = 1
         # 消费者数量
         self._consumer_num = 1
 
@@ -110,15 +110,15 @@ class DynamicQueue:
         self._queue_to = queue_to
 
     @property
-    def productor_num(self):
-        return self._productor_num
+    def producer_num(self):
+        return self._producer_num
 
-    @productor_num.setter
+    @producer_num.setter
     @typecheck(int)
-    def productor_num(self, productor_num):
-        if productor_num < 0:
-            raise ValueError('productor num must not be smaller than 0')
-        self._productor_num = productor_num
+    def producer_num(self, producer_num):
+        if producer_num < 0:
+            raise ValueError('producer num must not be smaller than 0')
+        self._producer_num = producer_num
 
     @property
     def consumer_num(self):
@@ -139,7 +139,7 @@ class FixedQueue:
         # 队列名
         self._name = ''
         # 生产者数量
-        self._productor_num = 1
+        self._producer_num = 1
         # 消费者数量
         self._consumer_num = 1
 
@@ -155,15 +155,15 @@ class FixedQueue:
         self._name = name
 
     @property
-    def productor_num(self):
-        return self._productor_num
+    def producer_num(self):
+        return self._producer_num
 
-    @productor_num.setter
+    @producer_num.setter
     @typecheck(int)
-    def productor_num(self, productor_num):
-        if productor_num < 0:
-            raise ValueError('productor num must not be smaller than 0')
-        self._productor_num = productor_num
+    def producer_num(self, producer_num):
+        if producer_num < 0:
+            raise ValueError('producer num must not be smaller than 0')
+        self._producer_num = producer_num
 
     @property
     def consumer_num(self):
@@ -198,7 +198,7 @@ class Task:
         # perfetch消息预取, 默认每次取1条消息
         self._prefetch = 0
         # 单个生产者速率, 默认100条
-        self._productor_rate = 0
+        self._producer_rate = 0
         # 单个消费者速率，默认500条
         self._consumer_rate = 0
         # 消息属性列表, key-value
@@ -316,13 +316,13 @@ class Task:
             raise ValueError('prefetch cannot be negative')
 
     @property
-    def productor_rate(self):
-        return self._productor_rate
+    def producer_rate(self):
+        return self._producer_rate
 
-    @productor_rate.setter
+    @producer_rate.setter
     @typecheck(int, list)
-    def productor_rate(self, productor_rate):
-        self._productor_rate = productor_rate
+    def producer_rate(self, producer_rate):
+        self._producer_rate = producer_rate
 
     @property
     def consumer_rate(self):
@@ -344,13 +344,13 @@ class Task:
     def role(self, role):
         '''
         设置任务角色, 只作为生产者或消费者, 或者二者兼有
-        :param role: productor, consumer, all
+        :param role: producer, consumer, all
         :return:
         '''
         if role in TASK_ROLES:
             self._role = role
         else:
-            raise ValueError('Role must be in "productor" "consumer" "all"')
+            raise ValueError('Role must be in "producer" "consumer" "all"')
 
     @property
     def msg_size(self):
@@ -417,7 +417,7 @@ class Task:
         if 'routing-key' in yaml_task:
             task.routing_key = yaml_task['routing-key']
         else:
-            raise ValueError('if role is productor or consumer, routing-key must be set')
+            raise ValueError('if role is producer or consumer, routing-key must be set')
         if 'auto-ack' in yaml_task:
             task.auto_ack = yaml_task['auto-ack']
         if 'multi-ack' in yaml_task:
@@ -430,10 +430,10 @@ class Task:
             task.consumer_rate = yaml_task['consumer-rate']
 
         # 生产者速率需要判断是否是动态速率
-        if 'productor-rate' in yaml_task:
-            rate = yaml_task['productor-rate']
+        if 'producer-rate' in yaml_task:
+            rate = yaml_task['producer-rate']
             if isinstance(rate, int): # 固定速率
-                task.productor_rate = rate
+                task.producer_rate = rate
             elif isinstance(rate, list):
                 rate_list = []
                 for dynamic_rate in rate:
@@ -443,11 +443,11 @@ class Task:
                         dynamic_rate_obj.rate = dynamic_rate['rate']
                         rate_list.append(dynamic_rate_obj)
                     else:
-                        raise ValueError('duration or rate not found in productor-rate object')
+                        raise ValueError('duration or rate not found in producer-rate object')
                 if len(rate_list) != 0:
-                    task.productor_rate = rate_list
+                    task.producer_rate = rate_list
             else:
-                raise ValueError('please check productor-rate field')
+                raise ValueError('please check producer-rate field')
 
         # 需要检查是否是动态消息大小
         if 'msg-size' in yaml_task:
@@ -487,8 +487,8 @@ class Task:
                     queue_obj.name = queue['name']
                 else:
                     raise ValueError('name field not found in queue')
-            if 'productor' in queue:
-                queue_obj.productor_num = queue['productor']
+            if 'producer' in queue:
+                queue_obj.producer_num = queue['producer']
             if 'consumer' in queue:
                 queue_obj.consumer_num = queue['consumer']
             task.queue = queue_obj
@@ -505,7 +505,7 @@ class Task:
         '''
         通过解析后的yaml数据构造任务列表
         :param yaml_data: yaml结构
-        :param role: productor, consumer, all其中一个
+        :param role: producer, consumer, all其中一个
         :return:
         '''
         if role not in TASK_ROLES:

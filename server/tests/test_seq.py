@@ -43,7 +43,7 @@ def add_seperate():
         'sent': 1000,
     }
     result = requests.post('http://127.0.0.1:8888/tasks/5/task_seqs', data=json.dumps(data))
-    print('productor =================================')
+    print('producer =================================')
     print('status_code: %d => %s' % (result.status_code, result.reason))
     pprint.pprint(result.text)
 

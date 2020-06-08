@@ -20,7 +20,7 @@ using namespace std;
 
 int parse_amqp_uri(string &uri, string &user, string &passwd, string &host, uint16_t &port);
 
-int create_productor(struct event_base *evbase, string &url, string &exchange, string &routing_key, MQ* msg_queue);
+int create_producer(struct event_base *evbase, string &url, string &exchange, string &routing_key, MQ* msg_queue);
 
 int create_consumer(struct event_base *evbase, string &url, string &exchange, string &queue, string &routing_key);
 

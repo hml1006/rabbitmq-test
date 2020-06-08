@@ -130,7 +130,7 @@ public:
         // 固定速率和可变速率二选一
         if (this->producer_rate > 0)
         {
-            cout << "productor rate:\t" << this->producer_rate << endl;
+            cout << "producer rate:\t" << this->producer_rate << endl;
         }
         else 
         {
@@ -164,7 +164,7 @@ public:
             cout << "queue from:\t" << this->queue_name_from << endl;
             cout << "queue to:\t" << this->queue_name_to << endl;
         }
-        cout << "productor num:\t" << this->producers << endl;
+        cout << "producer num:\t" << this->producers << endl;
         cout << "consumer num:\t" << this->consumers << endl;
         cout << "amqp url:\t" << this->amqp_url << endl;
     }

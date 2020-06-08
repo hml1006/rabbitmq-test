@@ -12,8 +12,10 @@
 
 - rabbitmq-per-test: 官方测试工具
 
-- mo_librabbitmq_test: mo_librabbitmq库测试工具
+- librmq_test: mo_librabbitmq库测试工具
 
 - server：web服务，接收日志和监控程序上报的数据并提供html报表服务
+
+- create_cfg.py 生成测试yaml配置文件
 
   

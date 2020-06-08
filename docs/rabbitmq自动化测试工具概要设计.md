@@ -103,7 +103,7 @@ task_list:
     # 消费者速率 msg/s, 每个消费者都是这个速率
     consumer-rate: 500
     # 发送速率 msg/s，每个消费者都是这个速率
-    productor-rate: 20000
+    producer-rate: 20000
     # 消息大小
     msg-size:
       -
@@ -143,7 +143,7 @@ task_list:
     # 消费者速率 msg/s, 每个消费者都是这个速率
     consumer-rate: 500
     # 发送速率 msg/s，每个消费者都是这个速率
-    productor-rate:
+    producer-rate:
       - # 发送间隔5秒，发送速率 1000 msg/s
         duration: 5
         rate: 1000

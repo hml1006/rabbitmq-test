@@ -42,7 +42,7 @@ int parse_amqp_uri(string &uri, string &user, string &passwd, string &host, uint
 	return 0;
 }
 
-int create_productor(struct event_base *evbase, string &url, string &exchange, string &routing_key, MQ* msg_queue)
+int create_producer(struct event_base *evbase, string &url, string &exchange, string &routing_key, MQ* msg_queue)
 {
 	string user, passwd, host;
 	uint16_t port = 0;
@@ -70,7 +70,7 @@ int create_productor(struct event_base *evbase, string &url, string &exchange, s
 	}
 	else
 	{
-		cout << "create productor failed" << endl;
+		cout << "create producer failed" << endl;
 	}
 	return -1;
 }
@@ -183,10 +183,10 @@ void connection_disc_cb(amqp_connection_state_t conn, const char *expect, const 
 	else if (tag == PRODUCER_TAG)
 	{
 		MQ *mq = amqp_get_msg_queue(conn);
-        int ret = create_productor(evbase, config->amqp_url, config->exchange, config->routing_key, mq);
+        int ret = create_producer(evbase, config->amqp_url, config->exchange, config->routing_key, mq);
         if (ret != 0)
         {
-            cout << "create productor failed, routing_key: " << config->routing_key << endl;
+            cout << "create producer failed, routing_key: " << config->routing_key << endl;
         }
 	}
 }

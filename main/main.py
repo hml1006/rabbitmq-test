@@ -186,7 +186,7 @@ if __name__ == '__main__':
     # yaml配置文件路径
     parser.add_argument('-f', '--file', type=str, dest='file', help='The yaml config file path')
     # 脚本执行角色，如果单机测试，生产者和消费者在同一个程序测试，选择all，如果生产者不在同一个进程
-    parser.add_argument('-r', '--role', type=str, dest='role', help='productor, consumer, or all, default is all')
+    parser.add_argument('-r', '--role', type=str, dest='role', help='producer, consumer, or all, default is all')
     # 测试程序,使用官方测试工具还是mo_librabbitmq测试工具
     parser.add_argument('-t', '--type', type=str, dest='prog', help='standard or mo_librabbitmq')
     args = parser.parse_args()
@@ -202,8 +202,8 @@ if __name__ == '__main__':
     # 获取角色
     if not args.role:
         role = 'all'
-    elif args.role != 'productor' and args.role != 'consumer' and args.role != 'all':
-        print('Ther role must be "productor", "consumer", or "all"')
+    elif args.role != 'producer' and args.role != 'consumer' and args.role != 'all':
+        print('Ther role must be "producer", "consumer", or "all"')
         print_help_and_exit(parser)
     else:
         role = args.role

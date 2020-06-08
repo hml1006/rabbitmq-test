@@ -144,26 +144,26 @@ class Command:
             self._consumer_rate = ''
 
     @property
-    def productor_rate(self):
-        return self._productor_rate
+    def producer_rate(self):
+        return self._producer_rate
 
-    @productor_rate.setter
+    @producer_rate.setter
     @typecheck(int, list)
-    def productor_rate(self, productor_rate):
-        self._productor_rate = ''
-        if isinstance(productor_rate, int):
-            if productor_rate > 0:
-                self._productor_rate = ' -r %d' % productor_rate
+    def producer_rate(self, producer_rate):
+        self._producer_rate = ''
+        if isinstance(producer_rate, int):
+            if producer_rate > 0:
+                self._producer_rate = ' -r %d' % producer_rate
             else:
-                self._productor_rate = ''
-        elif len(productor_rate) > 0:
-            for item in productor_rate:
+                self._producer_rate = ''
+        elif len(producer_rate) > 0:
+            for item in producer_rate:
                 if isinstance(item, rmqtask.DynamicProdRate):
                     if self.type == 'standard':
                         item_rate = ' -vr %d:%d' % (item.rate, item.duration)
                     else:
                         item_rate = ' --vr %d:%d' % (item.rate, item.duration)
-                    self._productor_rate = self._productor_rate + item_rate
+                    self._producer_rate = self._producer_rate + item_rate
 
     @property
     def msg_size(self):
@@ -204,14 +204,14 @@ class Command:
     @typecheck(rmqtask.FixedQueue, rmqtask.DynamicQueue)
     def queue(self, queue):
         if isinstance(queue, rmqtask.FixedQueue):
-            self._queue = ' -u %s -x %d -y %d' % (queue.name, queue.productor_num, queue.consumer_num)
+            self._queue = ' -u %s -x %d -y %d' % (queue.name, queue.producer_num, queue.consumer_num)
         elif isinstance(queue, rmqtask.DynamicQueue):
             if self.type == 'standard':
                 self._queue = ' -qp %s -qpf %d -qpt %d -x %d -y %d' % (queue.pattern, queue.queue_from, queue.queue_to, \
-                                                                   queue.productor_num, queue.consumer_num)
+                                                                       queue.producer_num, queue.consumer_num)
             else:
                 self._queue = ' --qp %s --qpf %d --qpt %d -x %d -y %d' % (queue.pattern, queue.queue_from, queue.queue_to, \
-                                                                       queue.productor_num, queue.consumer_num)
+                                                                          queue.producer_num, queue.consumer_num)
 
     @property
     def url(self):
@@ -236,15 +236,15 @@ class Command:
         构造命令行
         :return:
         '''
-        if self.role == 'productor':
+        if self.role == 'producer':
             args = [self.prog, self.exchange, self.task_id, self.routing_key, self.auto_ack, self.persistent, \
-                    self.productor_rate, self.msg_size, self.queue, self.run_duration, self.url]
+                    self.producer_rate, self.msg_size, self.queue, self.run_duration, self.url]
         elif self.role == 'consumer':
             args = [self.prog, self.exchange, self.task_id, self.routing_key, self.auto_ack, self.prefetch, \
                     self.multi_ack, self.queue, self.consumer_rate, self.run_duration, self.url]
         elif self.role == 'all':
             args = [self.prog, self.exchange, self.task_id, self.routing_key, self.auto_ack, self.multi_ack, \
-                    self.persistent, self.prefetch, self.productor_rate, self.consumer_rate, \
+                    self.persistent, self.prefetch, self.producer_rate, self.consumer_rate, \
                     self.msg_size, self.queue, self.run_duration, self.url]
         else:
             raise ValueError('role error: %s' % self.role)
@@ -264,7 +264,7 @@ class Command:
         command.multi_ack = task.multi_ack
         command.persistent = task.persistent
         command.prefetch = task.prefetch
-        command.productor_rate = task.productor_rate
+        command.producer_rate = task.producer_rate
         command.consumer_rate = task.consumer_rate
         command.msg_size = task.msg_size
         command.queue = task.queue

@@ -56,13 +56,13 @@ void parse(int argc, char* argv[])
                 ("f", "persistent", cxxopts::value<string>())
                 ("q", "prefetch number", cxxopts::value<int>())
                 ("R", "consumer rate", cxxopts::value<int>())
-                ("r", "productor rate", cxxopts::value<int>())
+                ("r", "producer rate", cxxopts::value<int>())
                 ("vr", "[RATE]:[DURATION]", cxxopts::value<vector<int>>())
                 ("mp", "key1=value1,key2=value2", cxxopts::value<string>())
                 ("s", "message size", cxxopts::value<int>())
                 ("vs", "[SIZE]:[DURATION]", cxxopts::value<vector<int>>())
                 ("u", "queue name", cxxopts::value<string>())
-                ("x", "productor number", cxxopts::value<int>())
+                ("x", "producer number", cxxopts::value<int>())
                 ("y", "consumer number", cxxopts::value<int>())
                 ("qp", "queue name pattern", cxxopts::value<string>())
                 ("qpf", "queue name from", cxxopts::value<int>())
@@ -264,7 +264,7 @@ void parse(int argc, char* argv[])
         }
         if (config->producers == 0 && config->consumers == 0)
         {
-            cout << "productor number and consumer number are zero" << endl;
+            cout << "producer number and consumer number are zero" << endl;
             exit(-1);
         } else if (config->producers == 0 && config->consumers > 0)
         {
@@ -569,10 +569,10 @@ void *thread_func(void *arg)
         {
             MQ *mq = new MQ;
             mq_list->push_back(mq);
-            int ret = create_productor(evbase, config->amqp_url, config->exchange, config->routing_key, mq);
+            int ret = create_producer(evbase, config->amqp_url, config->exchange, config->routing_key, mq);
             if (ret != 0)
             {
-                cout << "create productor failed, queue: " << it->queue << endl;
+                cout << "create producer failed, queue: " << it->queue << endl;
             }
         }
         else if (it->role == Role::CONSUMER_ROLE)
