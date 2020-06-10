@@ -79,7 +79,8 @@ def send_log(line, url):
         return
     log_info = dict()
     # 日志时间设置未当前unix时间戳
-    log_info['stat_time'] = int(time.mktime(datetime.datetime.now().timetuple()))
+    current_time = datetime.datetime.now()
+    log_info['stat_time'] = time.mktime(current_time.timetuple()) + current_time.microsecond / 1000000.0
 
     # 获取发送消息速率
     sent = re.findall(RE_SENT, line)

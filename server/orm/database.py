@@ -2,7 +2,7 @@ from config.config import Config
 from sqlalchemy import create_engine, inspect
 from sqlalchemy.orm import sessionmaker, relationship
 from sqlalchemy.ext.declarative import as_declarative
-from sqlalchemy import Column,Integer,String, Text, ForeignKey, UniqueConstraint, Index
+from sqlalchemy import Column,Integer,Float,String, Text, ForeignKey, UniqueConstraint, Index
 
 @as_declarative()
 class Base:
@@ -43,7 +43,7 @@ class TaskSeq(Base):
     id = Column(Integer, primary_key=True, autoincrement=True)
     # 任务id, 可级联删除
     task_id = Column(Integer, ForeignKey('test_task.id', ondelete='CASCADE'), comment='任务id')
-    stat_time = Column(Integer, nullable=False, comment='指标统计时间')
+    stat_time = Column(Float, nullable=False, comment='指标统计时间')
     sent = Column(Integer, default=-1, comment='消息发送速率')
     received = Column(Integer, default=-1, comment='消息接收速率')
     latency_min = Column(Integer, default=-1, comment='最小延迟')
