@@ -49,7 +49,8 @@ class PickRmqThread(threading.Thread):
                     # cpu使用率, 统计间隔5秒, 会导致5秒阻塞
                     cpu_percent = process.cpu_percent(interval=5)
                     # 统计时间
-                    stat_time = int(time.mktime(datetime.datetime.now().timetuple()))
+                    current_time = datetime.datetime.now()
+                    stat_time = time.mktime(current_time.timetuple()) + current_time.microsecond / 1000000.0
                     data = {
                         'stat_time': stat_time,
                         'cpu_usage': cpu_percent,
@@ -180,7 +181,8 @@ class PickMachineThread(threading.Thread):
                 mem_usage, mem_total = get_machine_mem_info()
                 disk_free = get_dist_free(RABBIT_DATA_DIR)
                 cpu_usage = psutil.cpu_percent(interval=5)
-                stat_time = int(time.mktime(datetime.datetime.now().timetuple()))
+                current_time = datetime.datetime.now()
+                stat_time = time.mktime(current_time.timetuple()) + current_time.microsecond / 1000000.0
 
                 data = {
                     'stat_time': stat_time,

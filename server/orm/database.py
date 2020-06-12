@@ -95,7 +95,7 @@ class RmqStat(Base):
     __tablename__ = 'rmq_stat'
     id = Column(Integer, primary_key=True, autoincrement=True)
     node_id = Column(Integer, ForeignKey('node.id', ondelete='CASCADE'), comment='节点id')
-    stat_time = Column(Integer, nullable=False, comment='指标统计时间')
+    stat_time = Column(Float, nullable=False, comment='指标统计时间')
     cpu_usage = Column(Integer, nullable=False, comment='cpu使用率')
     mem_usage = Column(Integer, nullable=False, comment='内存使用量')
     disk_spend = Column(Integer, nullable=False, comment='磁盘占用')
@@ -108,7 +108,7 @@ class MachineStat(Base):
     __tablename__ = 'machine_stat'
     id = Column(Integer, primary_key=True, autoincrement=True)
     node_id = Column(Integer, ForeignKey('node.id', ondelete='CASCADE'), comment='节点id')
-    stat_time = Column(Integer, nullable=False, comment='指标统计时间')
+    stat_time = Column(Float, nullable=False, comment='指标统计时间')
     cpu_usage = Column(Integer, nullable=False, comment='cpu使用率')
     mem_usage = Column(Integer, nullable=False, comment='内存使用量')
     mem_total = Column(Integer, nullable=False, comment='系统内存')
