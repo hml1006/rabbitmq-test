@@ -200,7 +200,7 @@ class NodeService(pyrestful.rest.RestHandler):
         finally:
             return result
 
-    @get(_path='/nodes/{node_id}/rabbitmq/resources?<time_from><time_to>', _types=[int, str, str], _produces=mediatypes.APPLICATION_JSON)
+    @get(_path='/nodes/{node_id}/rabbitmq/resources?<time_from><time_to>', _types=[int, float, float], _produces=mediatypes.APPLICATION_JSON)
     def get_rmq_res_stats(self, node_id, time_from, time_to):
         '''
         获取节点一个时间段内的统计数据
@@ -278,7 +278,7 @@ class NodeService(pyrestful.rest.RestHandler):
         finally:
             return result
 
-    @get(_path='/nodes/{node_id}/machine/resources?<time_from><time_to>', _types=[int, str, str], _produces=mediatypes.APPLICATION_JSON)
+    @get(_path='/nodes/{node_id}/machine/resources?<time_from><time_to>', _types=[int, float, float], _produces=mediatypes.APPLICATION_JSON)
     def get_machine_stats(self, node_id, time_from, time_to):
         '''
         获取节点物理服务器统计数据
