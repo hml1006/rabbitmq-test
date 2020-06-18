@@ -15,7 +15,7 @@
     </div>
 
     <div style="display: flex;">
-        <div style="background-color:#e1ebf1;height:100%;width:600px;margin-left:100px;display: flex;">
+        <div style="background-color:#e1ebf1;height:100%;width:800px;margin-left:100px;display: flex;">
             <div>
                 <h3 class="list">任务列表</h3>
                 <div id="tasks"></div>
@@ -50,6 +50,7 @@
                     <table id="mem-warning"></table>
 				</div>
             </div>
+            <h2>Rmq崩溃历史</h2>
             <table id="rmq-crash"></table>
             <div id="node-resource">
                 <div id="cpu-resource" class="charts"></div>
@@ -88,10 +89,9 @@
         height: 40px;
         margin-top: 5px;
         margin-bottom: 5px;
-        /* margin-left: 30px; */
         cursor: pointer;
         background-color: #EEEEEE;
-        width: 200px;
+        width: 230px;
         padding-top: 10px;
         padding-left: 10px;
     }
@@ -134,6 +134,12 @@
     }
 </style>
 <script type="text/javascript">
+    // 延迟时间告警阈值
+    var latencyWarningThreshold = 2000
+    // cpu使用百分比告警阈值
+    var cpuWarningThreshold = 80
+    // 内存使用百分比告警阈值
+    var memWarningThreshold = 80
     // 全局任务列表
     tasks = null;
     // 节点列表
@@ -170,12 +176,6 @@
 
     // 选择任务
     function selectTask(elementId) {
-    	// 延迟时间告警阈值
-    	var latencyWarningThreshold = 2000
-		// cpu使用百分比告警阈值
-		var cpuWarningThreshold = 80
-		// 内存使用百分比告警阈值
-		var memWarningThreshold = 80
         var id = elementId.substring(5)
         var task_name = findTaskName(id)
         $('#task-name').text(task_name)
@@ -187,6 +187,7 @@
         $('#msg-rate').empty()
         $('#msg-latency').empty()
 		$('#latency-warning').empty()
+        $('#latency-warning').append('<tr><th>最大延迟状态</th><th>时间</th></tr>')
         getTaskSeqs(id, function (rateOption, latencyOption, latency99th) {
 			if (latency99th != null && latency99th.stat_time != null && latency99th.latency != null &&
 				(latency99th.stat_time.length == latency99th.latency.length)) {
@@ -204,7 +205,6 @@
 						state = true;
 					}
 				}
-				$('#latency-warning').append('<tr><th>最大延迟状态</th><th>时间</th></tr>')
 				for (var i = 0; i < stateList.length; i++) {
 					$('#latency-warning').append('<tr><td class="'+(stateList[i].state? '': 'warning')+'">'+(stateList[i].state? '正常': '延迟超过阈值')+'</td><td>'+formatTime(Math.round(stateList[i].stat_time))+'</td></tr>')
 				}
@@ -234,6 +234,10 @@
         $('#store-resource').empty()
         $('#msg-stat').empty()
         $('#rate-stat').empty()
+        $('#cpu-warning').empty()
+        $('#mem-warning').empty()
+        $('#cpu-warning').append('<tr><th>设备CPU状态</th><th>时间</th></tr>')
+        $('#mem-warning').append('<tr><th>设备内存状态</th><th>时间</th></tr>')
         getCrahes(id)
         getRmqStat(id, function (rmqSeqs) {
             var time = []
@@ -343,6 +347,10 @@
                         }
                     }
                 }
+
+                makeCpuWarning(time, machineCpu)
+                makeMemWarning(time, machineMemUsage, machineMemTotal)
+
                 var machineCpuStat = createSerie('物理服务器CPU使用率', time, machineCpu)
                 addStat(cpuOption, machineCpuStat)
                 var machineMemStat = createSerie('物理服务器内存使用 MB(' + '总内存' + machineMemTotal + 'GB)', time, machineMemUsage)
@@ -366,6 +374,53 @@
                 rateCharts.setOption(rateOption)
             })
         })
+    }
+
+    function makeCpuWarning(timeList, cpuUsageList) {
+        if (timeList != null && cpuUsageList != null && timeList.length != 0 && cpuUsageList.length != 0 &&
+            timeList.length == cpuUsageList.length) {
+            // 正常还是异常
+            var state = true
+            var stateList = []
+            for (var i = 0; i < timeList.length; i++) {
+                if (cpuUsageList[i] >= cpuWarningThreshold && state) {
+                    // 正常变异常
+                    stateList.push({stat_time: timeList[i], state: false})
+                    state = false;
+                } else if (cpuUsageList[i] < cpuWarningThreshold && !state) {
+                    // 异常变正常
+                    stateList.push({stat_time: cpuUsageList[i], state: true})
+                    state = true;
+                }
+            }
+            for (var i = 0; i < stateList.length; i++) {
+                $('#cpu-warning').append('<tr><td class="' + (stateList[i].state ? '' : 'warning') + '">' + (stateList[i].state ? '正常' : 'CPU使用率超过阈值') + '</td><td>' + formatTime(Math.round(stateList[i].stat_time)) + '</td></tr>')
+            }
+        }
+    }
+
+    function makeMemWarning(timeList, memUsageList, totalMem) {
+        if (timeList != null && memUsageList != null && timeList.length != 0 && memUsageList.length != 0 &&
+            timeList.length == memUsageList.length) {
+            // 正常还是异常
+            var state = true
+            var stateList = []
+            for (var i = 0; i < timeList.length; i++) {
+                var memPercent = 100 * memUsageList[i]/(totalMem * 1024);
+                if (memPercent >= memWarningThreshold && state) {
+                    // 正常变异常
+                    stateList.push({stat_time: timeList[i], state: false})
+                    state = false;
+                } else if (memPercent < memWarningThreshold && !state) {
+                    // 异常变正常
+                    stateList.push({stat_time: timeList[i], state: true})
+                    state = true;
+                }
+            }
+            for (var i = 0; i < stateList.length; i++) {
+                $('#mem-warning').append('<tr><td class="' + (stateList[i].state ? '' : 'warning') + '">' + (stateList[i].state ? '正常' : '内存使用率超过阈值') + '</td><td>' + formatTime(Math.round(stateList[i].stat_time)) + '</td></tr>')
+            }
+        }
     }
 
     // 查找物理服务器资源统计信息
@@ -427,8 +482,8 @@
                 var crashes = response.result
                 if (crashes != null && crashes.length > 0) {
                     for (var i = 0; i < crashes.length; i++) {
-                        var start_time = formatTime(crashes[i].start_time)
-                        var crash_time = formatTime(crashes[i].crash_time)
+                        var start_time = formatTime(crashes[i].start_time * 1000)
+                        var crash_time = formatTime(crashes[i].crash_time * 1000)
                         $('#rmq-crash').append('<tr><td>' + crashes[i].pid + '</td><td>' + start_time + '</td><td>' + crash_time + '</td></tr>')
                     }
                 }
