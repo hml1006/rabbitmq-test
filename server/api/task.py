@@ -172,8 +172,8 @@ class TaskService(pyrestful.rest.RestHandler):
                 result['errstr'] = str(err)
         # 生产者消费者分离模式下的生产者
         elif 'sent' in seq and 'received' not in seq:
-            sql = 'insert into task_seq(task_id,stat_time,sent) values(%s,%d,%d) ON DUPLICATE KEY UPDATE sent=%d' % \
-                  (task_id, seq['stat_time'], seq['sent'], seq['sent'])
+            sql = 'insert into task_seq(task_id,stat_time,sent) values(%s,%d,%d) ON DUPLICATE KEY UPDATE sent=sent+%d' % \
+                  (task_id, int(seq['stat_time']), seq['sent'], seq['sent'])
             try:
                 self.database.execute(sql)
                 self.database.commit()
@@ -185,9 +185,9 @@ class TaskService(pyrestful.rest.RestHandler):
         # 分离模式下的消费者上报数据
         elif 'sent' not in seq and 'received' in seq:
             sql = 'insert into task_seq(task_id,stat_time,received,latency_min,latency_median,latency_75th,latency_95th,latency_99th) ' \
-                  'values(%s,%d,%d,%d,%d,%d,%d,%d) ON DUPLICATE KEY UPDATE received=%d,latency_min=%d,latency_median=%d,latency_75th=%d,' \
+                  'values(%s,%d,%d,%d,%d,%d,%d,%d) ON DUPLICATE KEY UPDATE received=received+%d,latency_min=%d,latency_median=%d,latency_75th=%d,' \
                   'latency_95th=%d,latency_99th=%d'% \
-                  (task_id, seq['stat_time'], seq['received'], seq['latency_min'], seq['latency_median'], seq['latency_75th'], seq['latency_95th'], seq['latency_99th'], \
+                  (task_id, int(seq['stat_time']), seq['received'], seq['latency_min'], seq['latency_median'], seq['latency_75th'], seq['latency_95th'], seq['latency_99th'], \
                    seq['received'], seq['latency_min'], seq['latency_median'], seq['latency_75th'], seq['latency_95th'], seq['latency_99th'])
             try:
                 self.database.execute(sql)
