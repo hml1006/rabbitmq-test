@@ -8,6 +8,7 @@ if __name__ == '__main__':
     parser.add_argument('-z', '--run_duration', type=int, dest='time', help='Run duration', default=3600)
     parser.add_argument('-l', '--log_server', type=str, dest='log_server', help='Log server url', default='http://127.0.0.1:9999')
     parser.add_argument('-e', '--exchange', type=str, dest='exchange', help='Exchange', default='test.rmq.ex')
+    parser.add_argument('-t', '--type', type=str, dest='type', help='Exchange type', default='direct')
     parser.add_argument('-k', '--routing_key', type=str, dest='routing_key', help='Routing key', default='test.rmq.k')
     parser.add_argument('-u', '--queue', type=str, dest='queue', help='Queue name', default='test.rmq.q')
     parser.add_argument('-x', '--producer', type=int, dest='producer',  help='Producer number', default=10)
@@ -82,6 +83,7 @@ if __name__ == '__main__':
         'time': args.time,
         'routing-key': args.routing_key,
         'exchange': args.exchange,
+        'type': args.type,
         'auto_ack': True,
         'multi_ack': 0,
         'persistent': False,
