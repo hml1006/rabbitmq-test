@@ -75,6 +75,15 @@ class Command:
         self._exchange = ' -e %s' % exchange
 
     @property
+    def exchange_type(self):
+        return self._exchange_type
+
+    @exchange_type.setter
+    @typecheck(str)
+    def exchange_type(self, exchange_type):
+        self._exchange_type = ' -t %s' % exchange_type
+
+    @property
     def routing_key(self):
         return self._routing_key
 
@@ -238,14 +247,14 @@ class Command:
         '''
         if self.role == 'producer':
             args = [self.prog, self.exchange, self.task_id, self.routing_key, self.auto_ack, self.persistent, \
-                    self.producer_rate, self.msg_size, self.queue, self.run_duration, self.url]
+                    self.producer_rate, self.msg_size, self.queue, self.run_duration, self.url, self.exchange_type]
         elif self.role == 'consumer':
             args = [self.prog, self.exchange, self.task_id, self.routing_key, self.auto_ack, self.prefetch, \
-                    self.multi_ack, self.queue, self.consumer_rate, self.run_duration, self.url]
+                    self.multi_ack, self.queue, self.consumer_rate, self.run_duration, self.url, self.exchange_type]
         elif self.role == 'all':
             args = [self.prog, self.exchange, self.task_id, self.routing_key, self.auto_ack, self.multi_ack, \
                     self.persistent, self.prefetch, self.producer_rate, self.consumer_rate, \
-                    self.msg_size, self.queue, self.run_duration, self.url]
+                    self.msg_size, self.queue, self.run_duration, self.url, self.exchange_type]
         else:
             raise ValueError('role error: %s' % self.role)
         return ''.join(args)
@@ -257,6 +266,7 @@ class Command:
         command.type = prog_key
         command.role = task.role
         command.exchange = task.exchange
+        command.exchange_type = task.exchange_type
         command.run_duration = task.time
         command.task_id = task.name
         command.routing_key = task.routing_key

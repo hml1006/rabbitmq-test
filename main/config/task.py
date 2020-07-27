@@ -189,6 +189,8 @@ class Task:
         self._routing_key = ''
         # exchange
         self._exchange = ''
+        # exchange type
+        self._exchange_type = 'direct'
         # auto-ack
         self._auto_ack = True
         # multi-ack, 默认每次确认一条消息
@@ -396,6 +398,14 @@ class Task:
         else:
             raise ValueError('url must not be empty and should like "amqp://localhost:5671"')
 
+    @property
+    def exchange_type(self):
+        return self._exchange_type
+
+    @exchange_type.setter
+    @typecheck(str)
+    def exchange_type(self, exchange_type):
+        self._exchange_type = exchange_type
 
     @classmethod
     def build_task(cls, yaml_task: dict, role: str, url: str, sleep_time: int = 0):
@@ -413,6 +423,10 @@ class Task:
         task.name = yaml_task['name']
         task.time = yaml_task['time']
         task.exchange = yaml_task['exchange']
+        if 'type' in yaml_task:
+            task.exchange_type = yaml_task['type']
+        else:
+            task.exchange_type = 'direct'
         task.role = role
         if 'routing-key' in yaml_task:
             task.routing_key = yaml_task['routing-key']
