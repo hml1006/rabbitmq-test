@@ -99,6 +99,7 @@ class RmqStat(Base):
     cpu_usage = Column(Integer, nullable=False, comment='cpu使用率')
     mem_usage = Column(Integer, nullable=False, comment='内存使用量')
     disk_spend = Column(Integer, nullable=False, comment='磁盘占用')
+    net_speed = Column(Float, nullable=False, default=0.0, comment='6672端口网速')
     msg_summary = Column(Text, comment='消息概况，json base64编码')
 
 class MachineStat(Base):

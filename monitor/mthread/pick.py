@@ -1,6 +1,8 @@
 '''
 资源信息采集线程, 采集rmq服务资源使用情况和物理服务器资源使用情况, rmq服务统计信息, 并发送给消息通信线程
 '''
+import re
+import subprocess
 import threading
 import time
 import datetime
@@ -15,6 +17,61 @@ from utils.disk import get_file_size, get_dist_free
 
 # rabbitmq 数据目录
 RABBIT_DATA_DIR = '/opt/data/rabbitmq'
+
+# 监控上报间隔
+MONITOR_INTERVAL = 5
+
+# tcpdump line parse regex
+line_regex = re.compile(r'^IP\s+\d+\.\d+\.\d+\.\d+\.(\d+)\s+>\s+\d+\.\d+\.\d+\.\d+\.(\d+):.*tcp\s+(\d+)$')
+
+# 捕获的6672端口数据大小
+capture_bytes = 0
+
+def make_command(port):
+    return 'tcpdump -i any tcp -nn -t -q ' + port + ''
+
+def parse_line(line):
+    ret = re.findall(line_regex, line)
+    if ret == None or len(ret) != 1:
+        return None
+    (src, dst, length) = ret[0]
+    return (src, dst, int(length))
+
+def format_speed(speed):
+    return round(speed/(1024*1024), 2)
+
+def cal_speed(old_bytes_length, secs):
+    global capture_bytes
+    return (capture_bytes - old_bytes_length)/secs
+
+class NetSpeedCalThread(threading.Thread):
+    def __init__(self, daemon = True):
+        super().__init__()
+        self.setName('netspeed')
+        self.setDaemon(daemon)
+        print('create net speed thread')
+
+    def run(self):
+        port = '6672'
+        command = make_command(port)
+        tcpdump = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, shell=True,
+                                   close_fds=True)
+        if not tcpdump:
+            raise Exception('cannot execute command')
+
+        while True:
+            global capture_bytes
+            # 按行读取测试工具输出
+            data = tcpdump.stdout.readline()
+            if data and len(data) > 0:
+                line = str(data, encoding='utf8')
+                ret = parse_line(line)
+                if ret != None:
+                    (src, dst, length) = ret
+                    if src == port:
+                        capture_bytes = capture_bytes + length
+                    elif dst == port:
+                        capture_bytes = capture_bytes + length
 
 class PickRmqThread(threading.Thread):
     def __init__(self, daemon = True):
@@ -42,12 +99,15 @@ class PickRmqThread(threading.Thread):
                     process = None
                     continue
                 else:
+                    global  capture_bytes
+                    backup_5672_bytes = capture_bytes
                     # 内存占用, 单位 MB
                     mem_usage = get_rmq_process_mem_usage(process)
                     # 磁盘空间占用, 单位 MB
                     disk_spend = get_file_size(RABBIT_DATA_DIR)
                     # cpu使用率, 统计间隔5秒, 会导致5秒阻塞
-                    cpu_percent = process.cpu_percent(interval=5)
+                    cpu_percent = process.cpu_percent(interval=MONITOR_INTERVAL)
+                    speed = format_speed(cal_speed(backup_5672_bytes, MONITOR_INTERVAL))
                     # 统计时间
                     current_time = datetime.datetime.now()
                     stat_time = time.mktime(current_time.timetuple()) + current_time.microsecond / 1000000.0
@@ -56,6 +116,7 @@ class PickRmqThread(threading.Thread):
                         'cpu_usage': cpu_percent,
                         'mem_usage': mem_usage,
                         'disk_spend': disk_spend,
+                        'net_speed_6672': speed,
                         'msg_summary': self.get_rabbitmq_stats()
                     }
                     self.send_stat_report(data)

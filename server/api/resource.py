@@ -188,6 +188,7 @@ class NodeService(pyrestful.rest.RestHandler):
             stat.cpu_usage = res['cpu_usage']
             stat.mem_usage = res['mem_usage']
             stat.disk_spend = res['disk_spend']
+            stat.net_speed = res['net_speed']
             stat.msg_summary = json.dumps(res['msg_summary'])
             self.database.add(stat)
             self.database.commit()
