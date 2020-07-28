@@ -23,7 +23,7 @@ def get_rmq_process():
     :param keys:
     :return:
     '''
-    rabbitmq = ['/opt/midware/rabbitmq/erlang/erts-10.4.4/bin/beam.smp', '/usr/lib/erlang/erts-7.3/bin/beam.smp']
+    rabbitmq = ['/opt/midware/rabbitmq/erlang/erts-10.4.4/bin/beam.smp', '/usr/lib/erlang/erts-7.3/bin/beam.smp', '/usr/local/lib/erlang/erts-10.4/bin/beam.smp']
     for process in psutil.process_iter():
         cmdline = process.cmdline()
         if len(cmdline) > 2:

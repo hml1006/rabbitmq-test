@@ -116,7 +116,7 @@ class PickRmqThread(threading.Thread):
                         'cpu_usage': cpu_percent,
                         'mem_usage': mem_usage,
                         'disk_spend': disk_spend,
-                        'net_speed_6672': speed,
+                        'net_speed': speed,
                         'msg_summary': self.get_rabbitmq_stats()
                     }
                     self.send_stat_report(data)
